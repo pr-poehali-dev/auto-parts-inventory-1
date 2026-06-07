@@ -63,6 +63,7 @@ export interface Client {
   totalSpent: number;
   balance: number;
   isDeleted?: boolean;
+  vins?: string[];
 }
 
 export interface OrderItem {

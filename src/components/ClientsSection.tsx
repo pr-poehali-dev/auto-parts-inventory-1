@@ -21,6 +21,7 @@ function dbToClient(r: Record<string, unknown>): Client {
     totalOrders: Number(r.totalOrders),
     totalSpent: Number(r.totalSpent),
     createdAt: (r.createdAt as string) || new Date().toISOString().slice(0, 10),
+    vins: (r.vins as string[]) || [],
   };
 }
 
@@ -39,6 +40,7 @@ export default function ClientsSection() {
     type: 'individual', firstName: '', lastName: '', middleName: '',
     companyName: '', phone: '', email: '', city: '', address: '', note: '',
   });
+  const [formVins, setFormVins] = useState<string[]>(['']);
   const [addTab, setAddTab] = useState<'register' | 'invite'>('register');
 
   useEffect(() => {
@@ -122,10 +124,12 @@ export default function ClientsSection() {
     if (!form.firstName || !form.phone) return;
     setSaving(true);
     try {
-      const created = await createClient(form);
+      const vins = formVins.map((v) => v.trim().toUpperCase()).filter(Boolean);
+      const created = await createClient({ ...form, vins });
       setClients((prev) => [dbToClient(created), ...prev]);
       setShowAdd(false);
       setForm({ type: 'individual', firstName: '', lastName: '', middleName: '', companyName: '', phone: '', email: '', city: '', address: '' });
+      setFormVins(['']);
     } finally {
       setSaving(false);
     }
@@ -445,6 +449,43 @@ export default function ClientsSection() {
                   <label className="block text-xs text-muted-foreground mb-1">Примечание</label>
                   <textarea value={form.note || ''} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} rows={2}
                     className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
+                </div>
+
+                {/* VIN-номера */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs text-muted-foreground">VIN автомобиля</label>
+                    <button
+                      type="button"
+                      onClick={() => setFormVins((v) => [...v, ''])}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Icon name="Plus" size={12} />
+                      Добавить ещё
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {formVins.map((vin, i) => (
+                      <div key={i} className="flex gap-2">
+                        <input
+                          value={vin}
+                          onChange={(e) => setFormVins((v) => v.map((x, j) => j === i ? e.target.value.toUpperCase() : x))}
+                          placeholder="например: XTA21099080123456"
+                          maxLength={17}
+                          className="flex-1 px-3 py-2 border border-border rounded-md text-sm font-mono-data uppercase focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                        {formVins.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setFormVins((v) => v.filter((_, j) => j !== i))}
+                            className="text-muted-foreground hover:text-red-500 transition-colors px-2"
+                          >
+                            <Icon name="X" size={14} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : (

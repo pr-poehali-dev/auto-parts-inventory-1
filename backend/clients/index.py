@@ -38,10 +38,11 @@ def row_to_client(cols, row):
         'totalSpent': float(d['total_spent']),
         'isDeleted': d['is_removed'],
         'createdAt': str(d['created_at'])[:10],
+        'vins': list(d.get('vins') or []),
     }
 
 def handler(event: dict, context) -> dict:
-    """CRUD для клиентов"""
+    """CRUD для клиентов с поддержкой VIN-номеров"""
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': cors_headers(), 'body': ''}
 
@@ -57,7 +58,8 @@ def handler(event: dict, context) -> dict:
         if method == 'GET' and not client_id:
             cur.execute(f"""
                 SELECT id, client_type, first_name, last_name, middle_name, company_name,
-                       phone, email, city, address, note, balance, total_orders, total_spent, is_removed, created_at
+                       phone, email, city, address, note, balance, total_orders, total_spent,
+                       is_removed, created_at, vins
                 FROM {SCHEMA}.clients
                 ORDER BY created_at DESC
             """)
@@ -76,11 +78,13 @@ def handler(event: dict, context) -> dict:
         if method == 'POST':
             body = json.loads(event.get('body') or '{}')
             cid = str(uuid.uuid4())
+            vins = body.get('vins', [])
             cur.execute(f"""
                 INSERT INTO {SCHEMA}.clients
                   (id, client_type, first_name, last_name, middle_name, company_name,
-                   phone, email, city, address, note, balance, total_orders, total_spent, is_removed, created_at)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,0,0,0,false,%s)
+                   phone, email, city, address, note, balance, total_orders, total_spent,
+                   is_removed, created_at, vins)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,0,0,0,false,%s,%s)
                 RETURNING *
             """, (
                 cid,
@@ -95,6 +99,7 @@ def handler(event: dict, context) -> dict:
                 body.get('address'),
                 body.get('note'),
                 date.today().isoformat(),
+                vins,
             ))
             row = cur.fetchone()
             cols = [d[0] for d in cur.description]
@@ -125,6 +130,9 @@ def handler(event: dict, context) -> dict:
                 if key in body:
                     fields.append(f"{col} = %s")
                     values.append(cast(body[key]) if body[key] is not None else None)
+            if 'vins' in body:
+                fields.append('vins = %s')
+                values.append(list(body['vins']))
             if not fields:
                 return resp(400, {'error': 'Нет полей для обновления'})
             values.append(client_id)

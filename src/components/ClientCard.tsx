@@ -64,6 +64,9 @@ export default function ClientCard({ client, onBack }: Props) {
     address: client.address || '',
     note: client.note || '',
   });
+  const [editVins, setEditVins] = useState<string[]>(
+    client.vins && client.vins.length > 0 ? client.vins : ['']
+  );
   const [localClient, setLocalClient] = useState<Client>(client);
 
   useEffect(() => {
@@ -86,6 +89,7 @@ export default function ClientCard({ client, onBack }: Props) {
   const handleSaveEdit = async () => {
     setSavingEdit(true);
     try {
+      const vins = editVins.map((v) => v.trim().toUpperCase()).filter(Boolean);
       const updated = await updateClient(client.id, {
         type: editForm.type,
         firstName: editForm.firstName,
@@ -97,8 +101,9 @@ export default function ClientCard({ client, onBack }: Props) {
         city: editForm.city || null,
         address: editForm.address || null,
         note: editForm.note || null,
+        vins,
       });
-      setLocalClient((prev) => ({ ...prev, ...(updated as Partial<Client>) }));
+      setLocalClient((prev) => ({ ...prev, ...(updated as Partial<Client>), vins }));
       setEditing(false);
     } finally {
       setSavingEdit(false);
@@ -298,6 +303,43 @@ export default function ClientCard({ client, onBack }: Props) {
                 className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
             </div>
 
+            {/* VIN-номера */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs text-muted-foreground">VIN автомобиля</label>
+                <button
+                  type="button"
+                  onClick={() => setEditVins((v) => [...v, ''])}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Icon name="Plus" size={12} />
+                  Добавить ещё
+                </button>
+              </div>
+              <div className="space-y-2">
+                {editVins.map((vin, i) => (
+                  <div key={i} className="flex gap-2">
+                    <input
+                      value={vin}
+                      onChange={(e) => setEditVins((v) => v.map((x, j) => j === i ? e.target.value.toUpperCase() : x))}
+                      placeholder="например: XTA21099080123456"
+                      maxLength={17}
+                      className="flex-1 px-3 py-2 border border-border rounded-md text-sm font-mono-data uppercase focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    {editVins.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setEditVins((v) => v.filter((_, j) => j !== i))}
+                        className="text-muted-foreground hover:text-red-500 transition-colors px-2"
+                      >
+                        <Icon name="X" size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="flex gap-3 pt-1">
               <button onClick={() => setEditing(false)}
                 className="flex-1 px-4 py-2 border border-border rounded-md text-sm hover:bg-muted transition-colors">
@@ -332,6 +374,16 @@ export default function ClientCard({ client, onBack }: Props) {
                 {localClient.city && <span className="flex items-center gap-1"><Icon name="MapPin" size={13} />{localClient.city}{localClient.address ? `, ${localClient.address}` : ''}</span>}
               </div>
               {localClient.note && <div className="mt-2 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2 italic">{localClient.note}</div>}
+              {localClient.vins && localClient.vins.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {localClient.vins.map((vin) => (
+                    <span key={vin} className="inline-flex items-center gap-1 font-mono-data text-xs bg-blue-50 text-blue-800 border border-blue-200 px-2 py-1 rounded-md">
+                      <Icon name="Car" size={11} />
+                      {vin}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
             <button
               onClick={() => setEditing(true)}
