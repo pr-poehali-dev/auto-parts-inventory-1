@@ -242,6 +242,13 @@ def handler(event: dict, context) -> dict:
             if 'password' in body and body['password']:
                 if len(body['password']) < 6:
                     return resp(400, {'error': 'Пароль должен быть не менее 6 символов'})
+                old_password = body.get('oldPassword', '')
+                if not old_password:
+                    return resp(400, {'error': 'Введите текущий пароль для его смены'})
+                cur.execute(f"SELECT password_hash FROM {SCHEMA}.users WHERE id = %s", (user_id,))
+                pw_row = cur.fetchone()
+                if not pw_row or pw_row[0] != hash_password(old_password):
+                    return resp(400, {'error': 'Текущий пароль введён неверно'})
                 fields.append('password_hash = %s')
                 values.append(hash_password(body['password']))
 

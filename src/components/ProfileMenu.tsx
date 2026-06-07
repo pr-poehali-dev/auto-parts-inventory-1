@@ -5,14 +5,48 @@ import { authUpdate } from '@/api';
 
 interface UpdateResult { user: User }
 
+function PasswordInput({ value, onChange, placeholder, autoComplete }: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  autoComplete?: string;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        type={show ? 'text' : 'password'}
+        autoComplete={autoComplete}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full px-3 py-2.5 pr-10 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+      />
+      <button
+        type="button"
+        onClick={() => setShow((v) => !v)}
+        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+        tabIndex={-1}
+      >
+        <Icon name={show ? 'EyeOff' : 'Eye'} size={16} />
+      </button>
+    </div>
+  );
+}
+
 export default function ProfileMenu() {
   const { user, token, logout, setUser } = useAuth();
   const [open, setOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Форма настроек
-  const [form, setForm] = useState({ name: user?.name || '', phone: user?.phone || '', password: '', password2: '' });
+  const [form, setForm] = useState({
+    name: user?.name || '',
+    phone: user?.phone || '',
+    oldPassword: '',
+    password: '',
+    password2: '',
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -21,7 +55,6 @@ export default function ProfileMenu() {
     if (user) setForm((f) => ({ ...f, name: user.name || '', phone: user.phone || '' }));
   }, [user]);
 
-  // Закрытие по клику вне
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
@@ -45,21 +78,31 @@ export default function ProfileMenu() {
     }
     setSaving(true);
     try {
-      const payload: { name?: string; phone?: string; password?: string } = {
+      const payload: { name?: string; phone?: string; password?: string; oldPassword?: string } = {
         name: form.name,
         phone: form.phone,
       };
-      if (form.password) payload.password = form.password;
+      if (form.password) {
+        payload.password = form.password;
+        payload.oldPassword = form.oldPassword;
+      }
       const res = await authUpdate(token!, payload) as UpdateResult;
       setUser(res.user);
       setSuccess('Сохранено');
-      setForm((f) => ({ ...f, password: '', password2: '' }));
+      setForm((f) => ({ ...f, oldPassword: '', password: '', password2: '' }));
       setTimeout(() => setSuccess(''), 2500);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Ошибка сохранения');
     } finally {
       setSaving(false);
     }
+  };
+
+  const openSettings = () => {
+    setError(''); setSuccess('');
+    setForm((f) => ({ ...f, oldPassword: '', password: '', password2: '' }));
+    setShowSettings(true);
+    setOpen(false);
   };
 
   return (
@@ -77,14 +120,14 @@ export default function ProfileMenu() {
       </button>
 
       {/* Выпадающее меню */}
-      {open && !showSettings && (
+      {open && (
         <div className="absolute right-0 top-full mt-1.5 w-56 bg-white border border-border rounded-xl shadow-lg z-50 py-1 animate-fade-in">
           <div className="px-3 py-2.5 border-b border-border">
             <div className="text-sm font-semibold truncate">{displayName}</div>
             <div className="text-xs text-muted-foreground truncate">{user?.email}</div>
           </div>
           <button
-            onClick={() => { setShowSettings(true); setOpen(false); }}
+            onClick={openSettings}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted transition-colors"
           >
             <Icon name="Settings" size={15} className="text-muted-foreground" />
@@ -105,15 +148,15 @@ export default function ProfileMenu() {
       {/* Модалка настроек */}
       {showSettings && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setShowSettings(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-y-auto max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-semibold">Настройки аккаунта</h2>
               <button onClick={() => setShowSettings(false)} className="p-1 rounded-md hover:bg-muted transition-colors">
                 <Icon name="X" size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="flex flex-col gap-4">
+            <form onSubmit={handleSave} className="flex flex-col gap-4 px-6 pb-6">
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">Имя</label>
                 <input
@@ -143,22 +186,35 @@ export default function ProfileMenu() {
                   className="w-full px-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
-              <div className="border-t border-border pt-3">
-                <div className="text-xs text-muted-foreground mb-3">Сменить пароль (оставьте пустым, если не хотите менять)</div>
-                <div className="flex flex-col gap-3">
-                  <input
-                    type="password"
-                    value={form.password}
-                    onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                    placeholder="Новый пароль"
-                    className="w-full px-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+
+              {/* Смена пароля */}
+              <div className="border-t border-border pt-4 flex flex-col gap-3">
+                <div className="text-xs text-muted-foreground">Сменить пароль (оставьте пустым, если не хотите менять)</div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Текущий пароль</label>
+                  <PasswordInput
+                    value={form.oldPassword}
+                    onChange={(v) => setForm((f) => ({ ...f, oldPassword: v }))}
+                    placeholder="Введите текущий пароль"
+                    autoComplete="current-password"
                   />
-                  <input
-                    type="password"
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Новый пароль</label>
+                  <PasswordInput
+                    value={form.password}
+                    onChange={(v) => setForm((f) => ({ ...f, password: v }))}
+                    placeholder="Минимум 6 символов"
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Повторите новый пароль</label>
+                  <PasswordInput
                     value={form.password2}
-                    onChange={(e) => setForm((f) => ({ ...f, password2: e.target.value }))}
+                    onChange={(v) => setForm((f) => ({ ...f, password2: v }))}
                     placeholder="Повторите пароль"
-                    className="w-full px-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    autoComplete="new-password"
                   />
                 </div>
               </div>

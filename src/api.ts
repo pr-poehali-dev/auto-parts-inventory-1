@@ -66,5 +66,5 @@ export const authReset = (token: string, password: string) =>
   authReq(`${AUTH_URL}?action=reset`, 'POST', { token, password });
 export const authLogout = (token: string) =>
   authReq(`${AUTH_URL}?action=logout`, 'POST', undefined, token);
-export const authUpdate = (token: string, data: { name?: string; phone?: string; password?: string }) =>
+export const authUpdate = (token: string, data: { name?: string; phone?: string; password?: string; oldPassword?: string }) =>
   authReq(`${AUTH_URL}?action=update`, 'POST', data, token);
