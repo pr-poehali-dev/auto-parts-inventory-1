@@ -3,6 +3,7 @@ import func2url from '../backend/func2url.json';
 const PARTS_URL = func2url.parts;
 const CLIENTS_URL = func2url.clients;
 const ORDERS_URL = func2url.orders;
+const DECODE_VIN_URL = (func2url as Record<string, string>)['decode-vin'];
 
 async function req(url: string, method = 'GET', body?: unknown) {
   const res = await fetch(url, {
@@ -37,3 +38,6 @@ export const updateOrder = (id: string, data: unknown) => req(`${ORDERS_URL}?id=
 export const getBalanceHistory = (clientId: string) =>
   req(`${ORDERS_URL}?action=balance&clientId=${clientId}`);
 export const changeBalance = (data: unknown) => req(`${ORDERS_URL}?action=balance`, 'POST', data);
+
+// ── VIN DECODE ─────────────────────────────────────────
+export const decodeVin = (vin: string) => req(`${DECODE_VIN_URL}?vin=${encodeURIComponent(vin)}`);

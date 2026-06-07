@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { Client, ClientOrder, OrderItem, BalanceEntry, Part } from '@/data/mockData';
 import { getOrders, createOrder, updateOrder, getBalanceHistory, changeBalance, getParts, updateClient, getClient } from '@/api';
+import VinInfo from '@/components/VinInfo';
 
 interface Props {
   client: Client;
@@ -391,12 +392,9 @@ export default function ClientCard({ client, onBack }: Props) {
               </div>
               {localClient.note && <div className="mt-2 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2 italic">{localClient.note}</div>}
               {localClient.vins && localClient.vins.length > 0 && (
-                <div className="mt-3 flex flex-col gap-1.5">
+                <div className="mt-3 flex flex-col gap-2">
                   {localClient.vins.map((vin) => (
-                    <div key={vin} className="flex items-center gap-2 bg-slate-900 rounded-lg px-3 py-2 w-fit">
-                      <Icon name="Car" size={13} className="text-slate-400 shrink-0" />
-                      <span className="font-mono text-sm font-bold tracking-widest text-white uppercase">{vin}</span>
-                    </div>
+                    <VinInfo key={vin} vin={vin} />
                   ))}
                 </div>
               )}

@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "Decode valid VIN",
+      "method": "GET",
+      "path": "/?vin=WDD2163941A029188",
+      "expectedStatus": 200,
+      "expectedBody": {"vin": "string"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}
