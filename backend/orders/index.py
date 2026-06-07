@@ -106,11 +106,13 @@ def handler(event: dict, context) -> dict:
             ))
             row = cur.fetchone()
             cols = [d[0] for d in cur.description]
+            # Предоплата = клиент платит нам → баланс растёт; долг за заказ = мы должны выполнить на total
+            # balance = сколько клиент внёс минус сколько потратил (положительный = переплата, отрицательный = долг)
             cur.execute(f"""
                 UPDATE {SCHEMA}.clients
-                SET total_orders = total_orders + 1, balance = balance - %s
+                SET total_orders = total_orders + 1, balance = balance + %s - %s
                 WHERE id = %s
-            """, (prepaid, body.get('clientId')))
+            """, (prepaid, total, body.get('clientId')))
             if prepaid > 0:
                 cur.execute(f"""
                     INSERT INTO {SCHEMA}.balance_entries (id, client_id, date, entry_type, amount, note, order_id)
