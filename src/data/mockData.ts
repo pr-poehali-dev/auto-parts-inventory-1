@@ -62,6 +62,7 @@ export interface Client {
   totalOrders: number;
   totalSpent: number;
   balance: number;
+  isDeleted?: boolean;
 }
 
 export interface OrderItem {

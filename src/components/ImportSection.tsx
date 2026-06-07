@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import Icon from '@/components/ui/icon';
+import { importParts } from '@/api';
 
 interface ImportedRow {
   article: string;
@@ -60,6 +61,7 @@ export default function ImportSection() {
   const [fileName, setFileName] = useState('');
   const [imported, setImported] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFile = (file: File) => {
@@ -86,8 +88,15 @@ export default function ImportSection() {
   const okRows = preview.filter((r) => r.status === 'ok');
   const errRows = preview.filter((r) => r.status === 'error');
 
-  const handleImport = () => {
-    setImported(true);
+  const handleImport = async () => {
+    if (!okRows.length) return;
+    setSaving(true);
+    try {
+      await importParts(okRows);
+      setImported(true);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleReset = () => {
@@ -224,11 +233,11 @@ TRW-BF-L04;Колодки тормозные;TRW;Тормозная систем
               <span className="text-xs text-muted-foreground">Будет добавлено: {okRows.length} позиций</span>
               <button
                 onClick={handleImport}
-                disabled={okRows.length === 0}
+                disabled={okRows.length === 0 || saving}
                 className="flex items-center gap-2 px-4 py-1.5 bg-foreground text-background rounded-md text-sm font-medium hover:bg-foreground/80 transition-colors disabled:opacity-40"
               >
                 <Icon name="Upload" size={14} />
-                Импортировать
+                {saving ? 'Сохранение...' : 'Импортировать'}
               </button>
             </div>
           ) : (

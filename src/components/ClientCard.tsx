@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
-import { Client, ClientOrder, OrderItem, BalanceEntry, mockClientOrders, mockParts } from '@/data/mockData';
+import { Client, ClientOrder, OrderItem, BalanceEntry, Part } from '@/data/mockData';
+import { getOrders, createOrder, updateOrder, getBalanceHistory, changeBalance, getParts } from '@/api';
 
 interface Props {
   client: Client;
@@ -21,45 +22,49 @@ function paymentStatus(order: ClientOrder) {
 }
 
 export default function ClientCard({ client, onBack }: Props) {
-  const [orders, setOrders] = useState<ClientOrder[]>(
-    mockClientOrders.filter((o) => o.clientId === client.id)
-  );
+  const [orders, setOrders] = useState<ClientOrder[]>([]);
   const [balance, setBalance] = useState(client.balance);
-  const [balanceHistory, setBalanceHistory] = useState<BalanceEntry[]>(() => {
-    const entries: BalanceEntry[] = [];
-    mockClientOrders
-      .filter((o) => o.clientId === client.id && o.prepaid > 0)
-      .forEach((o) => {
-        entries.push({
-          id: 'p' + o.id,
-          date: o.date,
-          type: 'prepaid',
-          amount: o.prepaid,
-          note: `Предоплата по заказу #${o.id}`,
-          orderId: o.id,
-        });
-      });
-    return entries.sort((a, b) => b.date.localeCompare(a.date));
-  });
+  const [balanceHistory, setBalanceHistory] = useState<BalanceEntry[]>([]);
+  const [parts, setParts] = useState<Part[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
 
   const [showNewOrder, setShowNewOrder] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([
     { article: '', name: '', brand: '', quantity: 1, price: 0 },
   ]);
   const [orderNote, setOrderNote] = useState('');
   const [orderPrepaid, setOrderPrepaid] = useState(0);
   const [articleQuery, setArticleQuery] = useState<Record<number, string>>({});
-  const [articleSuggestions, setArticleSuggestions] = useState<Record<number, typeof mockParts>>({});
+  const [articleSuggestions, setArticleSuggestions] = useState<Record<number, Part[]>>({});
 
   const [showBalance, setShowBalance] = useState(false);
   const [balanceMode, setBalanceMode] = useState<'add' | 'remove'>('add');
   const [balanceAmount, setBalanceAmount] = useState('');
   const [balanceNote, setBalanceNote] = useState('');
   const [balanceSaved, setBalanceSaved] = useState(false);
+  const [savingBalance, setSavingBalance] = useState(false);
 
   const [editPrepaidId, setEditPrepaidId] = useState<string | null>(null);
   const [editPrepaidVal, setEditPrepaidVal] = useState('');
+
+  useEffect(() => {
+    Promise.all([
+      getOrders(client.id).then((data: ClientOrder[]) => setOrders(data)),
+      getBalanceHistory(client.id).then((data: BalanceEntry[]) => setBalanceHistory(data)),
+      getParts().then((data: unknown[]) => setParts(data.map((r: unknown) => {
+        const d = r as Record<string, unknown>;
+        return {
+          id: d.id as string, article: d.article as string, name: d.name as string,
+          brand: (d.brand as string) || '', category: (d.category as string) || '',
+          quantity: Number(d.quantity), minQuantity: Number(d.min_quantity),
+          price: Number(d.price), location: (d.location as string) || '',
+          analogs: (d.analogs as string[]) || [],
+        } as Part;
+      }))),
+    ]).finally(() => setLoading(false));
+  }, [client.id]);
 
   const clientName =
     client.type === 'company'
@@ -74,7 +79,7 @@ export default function ClientCard({ client, onBack }: Props) {
   const handleArticleSearch = (idx: number, val: string) => {
     setArticleQuery((q) => ({ ...q, [idx]: val }));
     if (val.length > 1) {
-      const found = mockParts.filter(
+      const found = parts.filter(
         (p) => p.article.toLowerCase().includes(val.toLowerCase()) || p.name.toLowerCase().includes(val.toLowerCase())
       ).slice(0, 5);
       setArticleSuggestions((s) => ({ ...s, [idx]: found }));
@@ -83,12 +88,10 @@ export default function ClientCard({ client, onBack }: Props) {
     }
   };
 
-  const selectSuggestion = (idx: number, part: typeof mockParts[0]) => {
+  const selectSuggestion = (idx: number, part: Part) => {
     setOrderItems((items) =>
       items.map((item, i) =>
-        i === idx
-          ? { article: part.article, name: part.name, brand: part.brand, quantity: item.quantity, price: part.price }
-          : item
+        i === idx ? { article: part.article, name: part.name, brand: part.brand, quantity: item.quantity, price: part.price } : item
       )
     );
     setArticleQuery((q) => ({ ...q, [idx]: part.article }));
@@ -104,84 +107,72 @@ export default function ClientCard({ client, onBack }: Props) {
 
   const orderTotal = orderItems.reduce((s, i) => s + i.quantity * i.price, 0);
 
-  const handleCreateOrder = () => {
+  const handleCreateOrder = async () => {
     const validItems = orderItems.filter((i) => i.article && i.quantity > 0);
     if (!validItems.length) return;
-    const total = validItems.reduce((s, i) => s + i.quantity * i.price, 0);
-    const paid = Math.min(orderPrepaid, total);
-    let newBalance = balance;
-    if (orderPrepaid > total) {
-      newBalance = balance + (orderPrepaid - total);
-      setBalance(newBalance);
+    setSavingOrder(true);
+    try {
+      const created = await createOrder({
+        clientId: client.id,
+        items: validItems,
+        prepaid: orderPrepaid,
+        note: orderNote,
+        status: 'new',
+      });
+      setOrders((prev) => [created as ClientOrder, ...prev]);
+      setShowNewOrder(false);
+      setOrderItems([{ article: '', name: '', brand: '', quantity: 1, price: 0 }]);
+      setOrderNote('');
+      setOrderPrepaid(0);
+      setArticleQuery({});
+      if (orderPrepaid > 0) {
+        setBalance((b) => b - orderPrepaid);
+        const newHistory = await getBalanceHistory(client.id);
+        setBalanceHistory(newHistory as BalanceEntry[]);
+      }
+    } finally {
+      setSavingOrder(false);
     }
-    const order: ClientOrder = {
-      id: 'o' + Date.now(),
-      clientId: client.id,
-      date: new Date().toISOString().slice(0, 10),
-      status: 'new',
-      items: validItems,
-      total,
-      prepaid: paid,
-      note: orderNote,
-    };
-    setOrders((prev) => [order, ...prev]);
-    setShowNewOrder(false);
-    setOrderItems([{ article: '', name: '', brand: '', quantity: 1, price: 0 }]);
-    setOrderNote('');
-    setOrderPrepaid(0);
-    setArticleQuery({});
   };
 
-  const handleBalanceSave = () => {
+  const handleBalanceSave = async () => {
     const amt = parseFloat(balanceAmount);
     if (!amt || amt <= 0) return;
-    setBalance((b) => balanceMode === 'add' ? b + amt : Math.max(0, b - amt));
-    const entry: BalanceEntry = {
-      id: 'b' + Date.now(),
-      date: new Date().toISOString().slice(0, 10),
-      type: balanceMode,
-      amount: amt,
-      note: balanceNote || undefined,
-    };
-    setBalanceHistory((h) => [entry, ...h]);
-    setBalanceAmount('');
-    setBalanceNote('');
-    setBalanceSaved(true);
-    setTimeout(() => { setBalanceSaved(false); setShowBalance(false); }, 1500);
+    setSavingBalance(true);
+    try {
+      const result = await changeBalance({ clientId: client.id, type: balanceMode, amount: amt, note: balanceNote });
+      setBalance((result as { balance: number }).balance);
+      const newHistory = await getBalanceHistory(client.id);
+      setBalanceHistory(newHistory as BalanceEntry[]);
+      setBalanceAmount('');
+      setBalanceNote('');
+      setBalanceSaved(true);
+      setTimeout(() => { setBalanceSaved(false); setShowBalance(false); }, 1500);
+    } finally {
+      setSavingBalance(false);
+    }
   };
 
-  const handleSavePrepaid = (orderId: string) => {
+  const handleSavePrepaid = async (orderId: string) => {
     const val = parseFloat(editPrepaidVal);
     if (isNaN(val) || val < 0) return;
-    setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id !== orderId) return o;
-        const paid = Math.min(val, o.total);
-        const extra = val - o.total;
-        if (extra > 0) setBalance((b) => b + extra);
-        const entry: BalanceEntry = {
-          id: 'p' + Date.now(),
-          date: new Date().toISOString().slice(0, 10),
-          type: 'prepaid',
-          amount: paid,
-          note: `Предоплата по заказу #${orderId}`,
-          orderId,
-        };
-        setBalanceHistory((h) => [entry, ...h]);
-        return { ...o, prepaid: paid };
-      })
-    );
+    const updated = await updateOrder(orderId, { prepaid: val });
+    setOrders((prev) => prev.map((o) => o.id === orderId ? updated as ClientOrder : o));
+    const newHistory = await getBalanceHistory(client.id);
+    setBalanceHistory(newHistory as BalanceEntry[]);
     setEditPrepaidId(null);
+  };
+
+  const handleStatusChange = async (orderId: string, status: ClientOrder['status']) => {
+    const updated = await updateOrder(orderId, { status });
+    setOrders((prev) => prev.map((o) => o.id === orderId ? updated as ClientOrder : o));
   };
 
   const totalSpent = orders.filter((o) => o.status === 'done').reduce((s, o) => s + o.total, 0);
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <button
-        onClick={onBack}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
+      <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
         <Icon name="ChevronLeft" size={16} />
         Все клиенты
       </button>
@@ -204,23 +195,11 @@ export default function ClientCard({ client, onBack }: Props) {
               </span>
             </div>
             <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1 font-mono-data">
-                <Icon name="Phone" size={13} />{client.phone}
-              </span>
-              {client.email && (
-                <span className="flex items-center gap-1">
-                  <Icon name="Mail" size={13} />{client.email}
-                </span>
-              )}
-              {client.city && (
-                <span className="flex items-center gap-1">
-                  <Icon name="MapPin" size={13} />{client.city}{client.address ? `, ${client.address}` : ''}
-                </span>
-              )}
+              <span className="flex items-center gap-1 font-mono-data"><Icon name="Phone" size={13} />{client.phone}</span>
+              {client.email && <span className="flex items-center gap-1"><Icon name="Mail" size={13} />{client.email}</span>}
+              {client.city && <span className="flex items-center gap-1"><Icon name="MapPin" size={13} />{client.city}{client.address ? `, ${client.address}` : ''}</span>}
             </div>
-            {client.note && (
-              <div className="mt-2 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2 italic">{client.note}</div>
-            )}
+            {client.note && <div className="mt-2 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2 italic">{client.note}</div>}
           </div>
         </div>
 
@@ -241,7 +220,7 @@ export default function ClientCard({ client, onBack }: Props) {
           </div>
         </div>
 
-        {/* Блок баланса */}
+        {/* Баланс */}
         <div className="mt-4 pt-4 border-t border-border">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -265,53 +244,42 @@ export default function ClientCard({ client, onBack }: Props) {
           {showBalance && (
             <div className="mt-3 border border-border rounded-lg p-3 space-y-2 animate-fade-in">
               <div className="flex gap-2">
-                <button
-                  onClick={() => setBalanceMode('add')}
-                  className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${balanceMode === 'add' ? 'bg-emerald-600 text-white' : 'bg-muted text-muted-foreground hover:text-foreground'}`}
-                >
+                <button onClick={() => setBalanceMode('add')}
+                  className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${balanceMode === 'add' ? 'bg-emerald-600 text-white' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
                   + Пополнить
                 </button>
-                <button
-                  onClick={() => setBalanceMode('remove')}
-                  className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${balanceMode === 'remove' ? 'bg-red-500 text-white' : 'bg-muted text-muted-foreground hover:text-foreground'}`}
-                >
+                <button onClick={() => setBalanceMode('remove')}
+                  className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${balanceMode === 'remove' ? 'bg-red-500 text-white' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
                   − Снять
                 </button>
               </div>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  min={0}
-                  value={balanceAmount}
-                  onChange={(e) => setBalanceAmount(e.target.value)}
-                  placeholder="Сумма, ₽"
-                  className="w-32 px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <input
-                  type="text"
-                  value={balanceNote}
-                  onChange={(e) => setBalanceNote(e.target.value)}
-                  placeholder="Комментарий..."
-                  className="flex-1 px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <button
-                  onClick={handleBalanceSave}
-                  disabled={!balanceAmount || parseFloat(balanceAmount) <= 0}
-                  className="px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:bg-foreground/80 disabled:opacity-40 transition-colors"
-                >
-                  {balanceSaved ? <Icon name="Check" size={16} /> : 'OK'}
+              <input type="number" min={0} value={balanceAmount}
+                onChange={(e) => setBalanceAmount(e.target.value)}
+                placeholder="Сумма, ₽"
+                className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <input type="text" value={balanceNote}
+                onChange={(e) => setBalanceNote(e.target.value)}
+                placeholder="Комментарий (необязательно)"
+                className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => setShowBalance(false)}
+                  className="flex-1 py-1.5 border border-border rounded-md text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  Отмена
+                </button>
+                <button onClick={handleBalanceSave} disabled={!balanceAmount || savingBalance}
+                  className="px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:bg-foreground/80 disabled:opacity-40 transition-colors">
+                  {balanceSaved ? <Icon name="Check" size={16} /> : savingBalance ? '...' : 'OK'}
                 </button>
               </div>
             </div>
           )}
 
-          {/* История операций */}
           {balanceHistory.length > 0 && (
             <div className="mt-3 pt-3 border-t border-border">
-              <button
-                onClick={() => setShowHistory((v) => !v)}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
-              >
+              <button onClick={() => setShowHistory((v) => !v)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full">
                 <Icon name="History" size={13} />
                 <span>История операций</span>
                 <span className="ml-1 bg-muted px-1.5 py-0.5 rounded text-xs">{balanceHistory.length}</span>
@@ -322,18 +290,8 @@ export default function ClientCard({ client, onBack }: Props) {
                 <div className="mt-2 space-y-1 animate-fade-in">
                   {balanceHistory.map((entry) => {
                     const isCredit = entry.type === 'add' || entry.type === 'prepaid';
-                    const typeLabel = {
-                      add: 'Пополнение',
-                      remove: 'Списание',
-                      prepaid: 'Предоплата',
-                      refund: 'Возврат',
-                    }[entry.type];
-                    const typeIcon = {
-                      add: 'ArrowDownLeft',
-                      remove: 'ArrowUpRight',
-                      prepaid: 'CreditCard',
-                      refund: 'Undo2',
-                    }[entry.type] as 'ArrowDownLeft';
+                    const typeLabel = { add: 'Пополнение', remove: 'Списание', prepaid: 'Предоплата', refund: 'Возврат' }[entry.type];
+                    const typeIcon = { add: 'ArrowDownLeft', remove: 'ArrowUpRight', prepaid: 'CreditCard', refund: 'Undo2' }[entry.type] as 'ArrowDownLeft';
                     return (
                       <div key={entry.id} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-muted/40 transition-colors">
                         <div className="flex items-center gap-2 min-w-0">
@@ -368,16 +326,18 @@ export default function ClientCard({ client, onBack }: Props) {
             <Icon name="ShoppingCart" size={15} className="text-muted-foreground" />
             <span className="text-sm font-medium">История заказов</span>
           </div>
-          <button
-            onClick={() => setShowNewOrder(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-foreground text-background rounded-md text-sm font-medium hover:bg-foreground/80 transition-colors"
-          >
+          <button onClick={() => setShowNewOrder(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-foreground text-background rounded-md text-sm font-medium hover:bg-foreground/80 transition-colors">
             <Icon name="Plus" size={13} />
             Новый заказ
           </button>
         </div>
 
-        {orders.length === 0 ? (
+        {loading ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            <Icon name="Loader" size={20} className="mx-auto mb-2 opacity-30 animate-spin" />
+          </div>
+        ) : orders.length === 0 ? (
           <div className="bg-white border border-border rounded-lg py-12 text-center text-muted-foreground">
             <Icon name="ShoppingCart" size={32} className="mx-auto mb-2 opacity-20" />
             <p className="text-sm">Заказов пока нет</p>
@@ -392,27 +352,23 @@ export default function ClientCard({ client, onBack }: Props) {
                 <div key={order.id} className="bg-white border border-border rounded-lg p-4 animate-fade-in">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono-data text-xs text-muted-foreground">#{order.id}</span>
+                      <span className="font-mono-data text-xs text-muted-foreground">#{order.id.slice(0, 8)}</span>
                       <span className="text-sm text-muted-foreground">{order.date}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {/* Статус оплаты */}
-                      {ps === 'paid' && (
-                        <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                          <Icon name="CheckCircle2" size={12} /> Оплачен
-                        </span>
-                      )}
-                      {ps === 'partial' && (
-                        <span className="flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                          <Icon name="AlertCircle" size={12} /> Частично
-                        </span>
-                      )}
-                      {ps === 'unpaid' && (
-                        <span className="flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
-                          <Icon name="AlertTriangle" size={12} /> Не оплачен
-                        </span>
-                      )}
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${st.cls}`}>{st.label}</span>
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                      {ps === 'paid' && <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full"><Icon name="CheckCircle2" size={12} /> Оплачен</span>}
+                      {ps === 'partial' && <span className="flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full"><Icon name="AlertCircle" size={12} /> Частично</span>}
+                      {ps === 'unpaid' && <span className="flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full"><Icon name="AlertTriangle" size={12} /> Не оплачен</span>}
+                      <select
+                        value={order.status}
+                        onChange={(e) => handleStatusChange(order.id, e.target.value as ClientOrder['status'])}
+                        onClick={(e) => e.stopPropagation()}
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full border-0 cursor-pointer focus:outline-none ${st.cls}`}
+                      >
+                        {Object.entries(STATUS_MAP).map(([k, v]) => (
+                          <option key={k} value={k}>{v.label}</option>
+                        ))}
+                      </select>
                       <span className="font-semibold font-mono-data text-sm">{order.total.toLocaleString()} ₽</span>
                     </div>
                   </div>
@@ -433,31 +389,20 @@ export default function ClientCard({ client, onBack }: Props) {
                     ))}
                   </div>
 
-                  {/* Блок предоплаты */}
                   <div className="mt-3 pt-3 border-t border-border">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 text-sm">
                         <span className="text-muted-foreground">Предоплата:</span>
                         {editPrepaidId === order.id ? (
                           <div className="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min={0}
-                              value={editPrepaidVal}
-                              onChange={(e) => setEditPrepaidVal(e.target.value)}
-                              autoFocus
+                            <input type="number" min={0} value={editPrepaidVal}
+                              onChange={(e) => setEditPrepaidVal(e.target.value)} autoFocus
                               className="w-28 px-2 py-1 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring"
                             />
-                            <button
-                              onClick={() => handleSavePrepaid(order.id)}
-                              className="p-1 text-emerald-600 hover:text-emerald-700"
-                            >
+                            <button onClick={() => handleSavePrepaid(order.id)} className="p-1 text-emerald-600 hover:text-emerald-700">
                               <Icon name="Check" size={14} />
                             </button>
-                            <button
-                              onClick={() => setEditPrepaidId(null)}
-                              className="p-1 text-muted-foreground hover:text-foreground"
-                            >
+                            <button onClick={() => setEditPrepaidId(null)} className="p-1 text-muted-foreground hover:text-foreground">
                               <Icon name="X" size={14} />
                             </button>
                           </div>
@@ -473,22 +418,11 @@ export default function ClientCard({ client, onBack }: Props) {
                           </button>
                         )}
                       </div>
-                      {ps !== 'paid' && (
-                        <span className="text-xs text-red-500 font-mono-data">
-                          долг: {debt.toLocaleString()} ₽
-                        </span>
-                      )}
-                      {ps === 'paid' && order.prepaid === order.total && (
-                        <span className="text-xs text-emerald-600 flex items-center gap-1">
-                          <Icon name="CheckCircle2" size={12} /> Заказ оплачен
-                        </span>
-                      )}
+                      {ps !== 'paid' && <span className="text-xs text-red-500 font-mono-data">долг: {debt.toLocaleString()} ₽</span>}
                     </div>
                   </div>
 
-                  {order.note && (
-                    <div className="mt-2 text-xs text-muted-foreground italic">{order.note}</div>
-                  )}
+                  {order.note && <div className="mt-2 text-xs text-muted-foreground italic">{order.note}</div>}
                 </div>
               );
             })}
@@ -505,9 +439,7 @@ export default function ClientCard({ client, onBack }: Props) {
                 <h3 className="text-base font-semibold">Новый заказ</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">{clientName}</p>
               </div>
-              <button onClick={() => setShowNewOrder(false)} className="text-muted-foreground hover:text-foreground">
-                <Icon name="X" size={18} />
-              </button>
+              <button onClick={() => setShowNewOrder(false)} className="text-muted-foreground hover:text-foreground"><Icon name="X" size={18} /></button>
             </div>
 
             <div className="px-5 py-4 space-y-3">
@@ -516,10 +448,7 @@ export default function ClientCard({ client, onBack }: Props) {
               {orderItems.map((item, idx) => (
                 <div key={idx} className="border border-border rounded-lg p-3 space-y-2 relative">
                   {orderItems.length > 1 && (
-                    <button
-                      onClick={() => removeItem(idx)}
-                      className="absolute top-2 right-2 text-muted-foreground hover:text-red-500 transition-colors"
-                    >
+                    <button onClick={() => removeItem(idx)} className="absolute top-2 right-2 text-muted-foreground hover:text-red-500 transition-colors">
                       <Icon name="Trash2" size={13} />
                     </button>
                   )}
@@ -534,11 +463,8 @@ export default function ClientCard({ client, onBack }: Props) {
                     {(articleSuggestions[idx]?.length ?? 0) > 0 && (
                       <div className="absolute top-full left-0 right-0 bg-white border border-border rounded-md shadow-lg z-10 mt-1">
                         {articleSuggestions[idx].map((p) => (
-                          <div
-                            key={p.id}
-                            onClick={() => selectSuggestion(idx, p)}
-                            className="flex items-center justify-between px-3 py-2 hover:bg-muted cursor-pointer border-b border-border last:border-0"
-                          >
+                          <div key={p.id} onClick={() => selectSuggestion(idx, p)}
+                            className="flex items-center justify-between px-3 py-2 hover:bg-muted cursor-pointer border-b border-border last:border-0">
                             <div>
                               <span className="font-mono-data text-xs font-medium">{p.article}</span>
                               <span className="text-xs text-muted-foreground ml-2">{p.name} · {p.brand}</span>
@@ -550,50 +476,37 @@ export default function ClientCard({ client, onBack }: Props) {
                     )}
                   </div>
                   {item.name && (
-                    <div className="text-xs text-muted-foreground bg-muted/40 px-2 py-1 rounded">
-                      {item.name} · {item.brand}
-                    </div>
+                    <div className="text-xs text-muted-foreground bg-muted/40 px-2 py-1 rounded">{item.name} · {item.brand}</div>
                   )}
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-xs text-muted-foreground mb-1">Количество</label>
-                      <input
-                        type="number" min={1} value={item.quantity}
+                      <input type="number" min={1} value={item.quantity}
                         onChange={(e) => updateItem(idx, 'quantity', +e.target.value)}
-                        className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
+                        className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring" />
                     </div>
                     <div>
                       <label className="block text-xs text-muted-foreground mb-1">Цена, ₽</label>
-                      <input
-                        type="number" min={0} value={item.price}
+                      <input type="number" min={0} value={item.price}
                         onChange={(e) => updateItem(idx, 'price', +e.target.value)}
-                        className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
+                        className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring" />
                     </div>
                   </div>
                 </div>
               ))}
 
-              <button
-                onClick={addItem}
-                className="w-full py-2 border border-dashed border-border rounded-lg text-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors flex items-center justify-center gap-1.5"
-              >
+              <button onClick={addItem}
+                className="w-full py-2 border border-dashed border-border rounded-lg text-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors flex items-center justify-center gap-1.5">
                 <Icon name="Plus" size={14} />
                 Добавить позицию
               </button>
 
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">Примечание к заказу</label>
-                <textarea
-                  value={orderNote}
-                  onChange={(e) => setOrderNote(e.target.value)}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                />
+                <textarea value={orderNote} onChange={(e) => setOrderNote(e.target.value)} rows={2}
+                  className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
               </div>
 
-              {/* Предоплата в форме создания */}
               {orderTotal > 0 && (
                 <div className="border border-border rounded-lg p-3 space-y-2 bg-muted/20">
                   <div className="flex items-center justify-between">
@@ -602,53 +515,29 @@ export default function ClientCard({ client, onBack }: Props) {
                   </div>
                   <div className="flex items-center gap-2">
                     <label className="text-sm text-muted-foreground shrink-0">Предоплата:</label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={orderPrepaid || ''}
+                    <input type="number" min={0} value={orderPrepaid || ''}
                       onChange={(e) => setOrderPrepaid(+e.target.value)}
                       placeholder="0"
-                      className="flex-1 px-3 py-1.5 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                    <span className="text-sm text-muted-foreground shrink-0">₽</span>
+                      className="flex-1 px-3 py-1.5 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring" />
+                    <span className="text-sm text-muted-foreground">₽</span>
                   </div>
-                  {orderPrepaid > 0 && (
-                    <div className="text-xs">
-                      {orderPrepaid >= orderTotal ? (
-                        <span className="text-emerald-600 flex items-center gap-1">
-                          <Icon name="CheckCircle2" size={12} />
-                          Оплачен полностью
-                          {orderPrepaid > orderTotal && ` · +${(orderPrepaid - orderTotal).toLocaleString()} ₽ на баланс`}
-                        </span>
-                      ) : (
-                        <span className="text-amber-600 flex items-center gap-1">
-                          <Icon name="AlertCircle" size={12} />
-                          Остаток: {(orderTotal - orderPrepaid).toLocaleString()} ₽
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  {balance > 0 && (
-                    <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded flex items-center gap-1">
-                      <Icon name="Wallet" size={12} />
-                      Баланс клиента: {balance.toLocaleString()} ₽ — можно использовать
+                  {orderPrepaid >= orderTotal && (
+                    <div className="text-xs text-emerald-600 flex items-center gap-1">
+                      <Icon name="CheckCircle2" size={12} /> Полная оплата
                     </div>
                   )}
                 </div>
               )}
             </div>
 
-            <div className="flex gap-3 px-5 py-4 border-t border-border">
+            <div className="flex gap-3 px-5 pb-5">
               <button onClick={() => setShowNewOrder(false)}
                 className="flex-1 px-4 py-2 border border-border rounded-md text-sm hover:bg-muted transition-colors">
                 Отмена
               </button>
-              <button
-                onClick={handleCreateOrder}
-                disabled={!orderItems.some((i) => i.article && i.quantity > 0)}
-                className="flex-1 px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:bg-foreground/80 disabled:opacity-40 transition-colors"
-              >
-                Создать заказ
+              <button onClick={handleCreateOrder} disabled={savingOrder || !orderItems.some((i) => i.article && i.quantity > 0)}
+                className="flex-1 px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:bg-foreground/80 disabled:opacity-50 transition-colors">
+                {savingOrder ? 'Сохранение...' : 'Создать заказ'}
               </button>
             </div>
           </div>

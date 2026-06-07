@@ -1,20 +1,47 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
-import { mockParts, Part, CATEGORIES } from '@/data/mockData';
+import { Part, CATEGORIES } from '@/data/mockData';
+import { getParts, createPart, deletePart } from '@/api';
 
 interface StockSectionProps {
   onSelectPart: (part: Part) => void;
 }
 
+function dbToPart(r: Record<string, unknown>): Part {
+  return {
+    id: r.id as string,
+    article: r.article as string,
+    name: r.name as string,
+    brand: (r.brand as string) || '',
+    category: (r.category as string) || 'Расходники',
+    quantity: Number(r.quantity),
+    minQuantity: Number(r.min_quantity),
+    price: Number(r.price),
+    location: (r.location as string) || '',
+    analogs: (r.analogs as string[]) || [],
+    oemArticle: (r.oem_article as string) || undefined,
+    barcode: (r.barcode as string) || undefined,
+    lastMovement: (r.last_movement as string) || undefined,
+  };
+}
+
 export default function StockSection({ onSelectPart }: StockSectionProps) {
-  const [parts, setParts] = useState<Part[]>(mockParts);
+  const [parts, setParts] = useState<Part[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStock, setFilterStock] = useState('all');
   const [sortBy, setSortBy] = useState<'name' | 'quantity' | 'price'>('name');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [newPart, setNewPart] = useState({
     article: '', oemArticle: '', name: '', brand: '', category: CATEGORIES[0], quantity: 0, minQuantity: 3, price: 0, location: '',
   });
+
+  useEffect(() => {
+    getParts()
+      .then((data: unknown[]) => setParts(data.map(dbToPart)))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = parts
     .filter((p) => !filterCategory || p.category === filterCategory)
@@ -30,16 +57,17 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
       return a.name.localeCompare(b.name);
     });
 
-  const handleAddPart = () => {
+  const handleAddPart = async () => {
     if (!newPart.article || !newPart.name) return;
-    const part: Part = {
-      ...newPart,
-      id: Date.now().toString(),
-      analogs: [],
-    };
-    setParts((prev) => [...prev, part]);
-    setShowAddModal(false);
-    setNewPart({ article: '', oemArticle: '', name: '', brand: '', category: CATEGORIES[0], quantity: 0, minQuantity: 3, price: 0, location: '' });
+    setSaving(true);
+    try {
+      const created = await createPart(newPart);
+      setParts((prev) => [...prev, dbToPart(created)]);
+      setShowAddModal(false);
+      setNewPart({ article: '', oemArticle: '', name: '', brand: '', category: CATEGORIES[0], quantity: 0, minQuantity: 3, price: 0, location: '' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const stockIndicator = (qty: number, min: number) => {
@@ -112,7 +140,12 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
           <span></span>
         </div>
 
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="py-12 text-center text-sm text-muted-foreground">
+            <Icon name="Loader" size={24} className="mx-auto mb-2 opacity-30 animate-spin" />
+            Загрузка...
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="py-12 text-center text-sm text-muted-foreground">
             <Icon name="Package" size={32} className="mx-auto mb-2 opacity-20" />
             Нет позиций
@@ -180,13 +213,13 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
                     value={(newPart as Record<string, unknown>)[key] as string}
                     onChange={(e) => setNewPart((p) => ({ ...p, [key]: e.target.value }))}
                     placeholder={placeholder}
-                    className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono-data placeholder:font-sans placeholder:text-muted-foreground/60"
+                    className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono-data placeholder:font-sans placeholder:text-muted-foreground"
                   />
                 </div>
               ))}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Количество</label>
+                  <label className="block text-xs text-muted-foreground mb-1">Кол-во</label>
                   <input type="number" min={0} value={newPart.quantity}
                     onChange={(e) => setNewPart((p) => ({ ...p, quantity: +e.target.value }))}
                     className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -222,9 +255,9 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
                 className="flex-1 px-4 py-2 border border-border rounded-md text-sm hover:bg-muted transition-colors">
                 Отмена
               </button>
-              <button onClick={handleAddPart}
-                className="flex-1 px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:bg-foreground/80 transition-colors">
-                Добавить
+              <button onClick={handleAddPart} disabled={saving}
+                className="flex-1 px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:bg-foreground/80 transition-colors disabled:opacity-50">
+                {saving ? 'Сохранение...' : 'Добавить'}
               </button>
             </div>
           </div>

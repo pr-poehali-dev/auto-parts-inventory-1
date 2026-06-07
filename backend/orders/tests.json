@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "GET all orders",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": [],
+      "bodyMatcher": "exact"
+    }
+  ]
+}

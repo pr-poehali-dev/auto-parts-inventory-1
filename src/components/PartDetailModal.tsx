@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
-import { Part, mockParts } from '@/data/mockData';
+import { Part } from '@/data/mockData';
+import { getParts, updatePart } from '@/api';
 
 interface Props {
   part: Part;
@@ -18,20 +19,58 @@ export default function PartDetailModal({ part, onClose }: Props) {
   const [oem, setOem] = useState(part.oemArticle || '');
   const [oemSaved, setOemSaved] = useState(false);
 
-  const analogParts = mockParts.filter((p) => part.analogs.includes(p.article));
+  const [analogParts, setAnalogParts] = useState<Part[]>([]);
+  const [savingMove, setSavingMove] = useState(false);
 
-  const handleMove = () => {
+  useEffect(() => {
+    if (part.analogs.length > 0) {
+      getParts().then((data: unknown[]) => {
+        const all = data as Array<Record<string, unknown>>;
+        setAnalogParts(
+          all
+            .filter((p) => part.analogs.includes(p.article as string))
+            .map((p) => ({
+              id: p.id as string, article: p.article as string, name: p.name as string,
+              brand: (p.brand as string) || '', category: (p.category as string) || '',
+              quantity: Number(p.quantity), minQuantity: Number(p.min_quantity),
+              price: Number(p.price), location: (p.location as string) || '',
+              analogs: (p.analogs as string[]) || [],
+            }))
+        );
+      });
+    }
+  }, [part.id]);
+
+  const handleMove = async () => {
     if (moveType === 'out' && moveQty > qty) return;
     const newQty = moveType === 'in' ? qty + moveQty : qty - moveQty;
-    setQty(newQty);
-    setMoved(true);
-    setTimeout(() => setMoved(false), 2000);
-    setNote('');
-    setMoveQty(1);
+    setSavingMove(true);
+    try {
+      await updatePart(part.id, {
+        article: part.article, name: part.name, brand: part.brand,
+        category: part.category, quantity: newQty, minQuantity: part.minQuantity,
+        price: part.price, location: part.location, analogs: part.analogs,
+        oemArticle: part.oemArticle,
+      });
+      setQty(newQty);
+      setMoved(true);
+      setTimeout(() => setMoved(false), 2000);
+      setNote('');
+      setMoveQty(1);
+    } finally {
+      setSavingMove(false);
+    }
   };
 
-  const handleSaveOem = () => {
-    part.oemArticle = oem.trim() || undefined;
+  const handleSaveOem = async () => {
+    const newOem = oem.trim() || undefined;
+    await updatePart(part.id, {
+      article: part.article, name: part.name, brand: part.brand,
+      category: part.category, quantity: qty, minQuantity: part.minQuantity,
+      price: part.price, location: part.location, analogs: part.analogs,
+      oemArticle: newOem,
+    });
+    part.oemArticle = newOem;
     setEditingOem(false);
     setOemSaved(true);
     setTimeout(() => setOemSaved(false), 2000);
@@ -192,10 +231,10 @@ export default function PartDetailModal({ part, onClose }: Props) {
               />
               <button
                 onClick={handleMove}
-                disabled={moveType === 'out' && moveQty > qty}
+                disabled={(moveType === 'out' && moveQty > qty) || savingMove}
                 className="px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:bg-foreground/80 disabled:opacity-40 transition-colors"
               >
-                {moved ? <Icon name="Check" size={16} /> : 'OK'}
+                {moved ? <Icon name="Check" size={16} /> : savingMove ? '...' : 'OK'}
               </button>
             </div>
           </div>

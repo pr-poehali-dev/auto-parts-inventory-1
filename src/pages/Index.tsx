@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import SearchSection from '@/components/SearchSection';
 import StockSection from '@/components/StockSection';
@@ -6,7 +6,8 @@ import AnalyticsSection from '@/components/AnalyticsSection';
 import ImportSection from '@/components/ImportSection';
 import ClientsSection from '@/components/ClientsSection';
 import PartDetailModal from '@/components/PartDetailModal';
-import { Part, mockParts } from '@/data/mockData';
+import { Part } from '@/data/mockData';
+import { getParts } from '@/api';
 
 type Tab = 'search' | 'stock' | 'clients' | 'analytics' | 'import';
 
@@ -29,8 +30,15 @@ const PAGE_TITLES: Record<Tab, { title: string; subtitle: string }> = {
 export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>('search');
   const [selectedPart, setSelectedPart] = useState<Part | null>(null);
+  const [lowStockCount, setLowStockCount] = useState(0);
 
-  const lowStockCount = mockParts.filter((p) => p.quantity === 0 || p.quantity <= p.minQuantity).length;
+  useEffect(() => {
+    getParts().then((data: unknown[]) => {
+      const count = (data as Array<{ quantity: number; min_quantity: number }>)
+        .filter((p) => p.quantity === 0 || p.quantity <= p.min_quantity).length;
+      setLowStockCount(count);
+    });
+  }, []);
   const { title, subtitle } = PAGE_TITLES[activeTab];
 
   return (
