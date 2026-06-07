@@ -48,14 +48,16 @@ def handler(event: dict, context) -> dict:
 
     method = event.get('httpMethod', 'GET')
     path = event.get('path', '/')
+    qs = event.get('queryStringParameters') or {}
     path_parts = [p for p in path.split('/') if p]
-    client_id = path_parts[-1] if path_parts and len(path_parts) >= 1 and path_parts[-1] not in ('clients',) else None
+    # ID может прийти через query ?id= или через path /UUID
+    client_id = qs.get('id') or (path_parts[-1] if path_parts and path_parts[-1] not in ('clients',) else None)
 
     conn = get_conn()
     cur = conn.cursor()
 
     try:
-        if method == 'GET' and not client_id:
+        if method == 'GET' and not client_id and not qs.get('id'):
             cur.execute(f"""
                 SELECT id, client_type, first_name, last_name, middle_name, company_name,
                        phone, email, city, address, note, balance, total_orders, total_spent,

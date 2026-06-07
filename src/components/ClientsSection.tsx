@@ -299,7 +299,9 @@ export default function ClientsSection() {
                     className="bg-white border border-border rounded-xl p-4 cursor-pointer hover:border-foreground/30 transition-all animate-fade-in"
                     onClick={() => {
                       if (client.isDeleted) return;
-                      getClient(client.id).then((fresh) => setSelected(dbToClient(fresh as Record<string, unknown>)));
+                      getClient(client.id)
+                        .then((fresh) => setSelected(dbToClient(fresh as Record<string, unknown>)))
+                        .catch(() => setSelected(client));
                     }}
                   >
                     <div className="flex items-start gap-3">
