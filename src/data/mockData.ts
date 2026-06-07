@@ -212,6 +212,15 @@ export const mockParts: Part[] = [
   },
 ];
 
+export interface BalanceEntry {
+  id: string;
+  date: string;
+  type: 'add' | 'remove' | 'prepaid' | 'refund';
+  amount: number;
+  note?: string;
+  orderId?: string;
+}
+
 export interface Client {
   id: string;
   type: 'individual' | 'company';

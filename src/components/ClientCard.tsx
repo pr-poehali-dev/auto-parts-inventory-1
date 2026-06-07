@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Icon from '@/components/ui/icon';
-import { Client, ClientOrder, OrderItem, mockClientOrders, mockParts } from '@/data/mockData';
+import { Client, ClientOrder, OrderItem, BalanceEntry, mockClientOrders, mockParts } from '@/data/mockData';
 
 interface Props {
   client: Client;
@@ -25,6 +25,23 @@ export default function ClientCard({ client, onBack }: Props) {
     mockClientOrders.filter((o) => o.clientId === client.id)
   );
   const [balance, setBalance] = useState(client.balance);
+  const [balanceHistory, setBalanceHistory] = useState<BalanceEntry[]>(() => {
+    const entries: BalanceEntry[] = [];
+    mockClientOrders
+      .filter((o) => o.clientId === client.id && o.prepaid > 0)
+      .forEach((o) => {
+        entries.push({
+          id: 'p' + o.id,
+          date: o.date,
+          type: 'prepaid',
+          amount: o.prepaid,
+          note: `Предоплата по заказу #${o.id}`,
+          orderId: o.id,
+        });
+      });
+    return entries.sort((a, b) => b.date.localeCompare(a.date));
+  });
+  const [showHistory, setShowHistory] = useState(false);
 
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([
@@ -119,6 +136,14 @@ export default function ClientCard({ client, onBack }: Props) {
     const amt = parseFloat(balanceAmount);
     if (!amt || amt <= 0) return;
     setBalance((b) => balanceMode === 'add' ? b + amt : Math.max(0, b - amt));
+    const entry: BalanceEntry = {
+      id: 'b' + Date.now(),
+      date: new Date().toISOString().slice(0, 10),
+      type: balanceMode,
+      amount: amt,
+      note: balanceNote || undefined,
+    };
+    setBalanceHistory((h) => [entry, ...h]);
     setBalanceAmount('');
     setBalanceNote('');
     setBalanceSaved(true);
@@ -134,6 +159,15 @@ export default function ClientCard({ client, onBack }: Props) {
         const paid = Math.min(val, o.total);
         const extra = val - o.total;
         if (extra > 0) setBalance((b) => b + extra);
+        const entry: BalanceEntry = {
+          id: 'p' + Date.now(),
+          date: new Date().toISOString().slice(0, 10),
+          type: 'prepaid',
+          amount: paid,
+          note: `Предоплата по заказу #${orderId}`,
+          orderId,
+        };
+        setBalanceHistory((h) => [entry, ...h]);
         return { ...o, prepaid: paid };
       })
     );
@@ -268,6 +302,60 @@ export default function ClientCard({ client, onBack }: Props) {
                   {balanceSaved ? <Icon name="Check" size={16} /> : 'OK'}
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* История операций */}
+          {balanceHistory.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-border">
+              <button
+                onClick={() => setShowHistory((v) => !v)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
+              >
+                <Icon name="History" size={13} />
+                <span>История операций</span>
+                <span className="ml-1 bg-muted px-1.5 py-0.5 rounded text-xs">{balanceHistory.length}</span>
+                <Icon name={showHistory ? 'ChevronUp' : 'ChevronDown'} size={13} className="ml-auto" />
+              </button>
+
+              {showHistory && (
+                <div className="mt-2 space-y-1 animate-fade-in">
+                  {balanceHistory.map((entry) => {
+                    const isCredit = entry.type === 'add' || entry.type === 'prepaid';
+                    const typeLabel = {
+                      add: 'Пополнение',
+                      remove: 'Списание',
+                      prepaid: 'Предоплата',
+                      refund: 'Возврат',
+                    }[entry.type];
+                    const typeIcon = {
+                      add: 'ArrowDownLeft',
+                      remove: 'ArrowUpRight',
+                      prepaid: 'CreditCard',
+                      refund: 'Undo2',
+                    }[entry.type] as 'ArrowDownLeft';
+                    return (
+                      <div key={entry.id} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-muted/40 transition-colors">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${isCredit ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
+                            <Icon name={typeIcon} size={12} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-medium">{typeLabel}</div>
+                            {entry.note && <div className="text-xs text-muted-foreground truncate">{entry.note}</div>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0 ml-2">
+                          <span className="text-xs text-muted-foreground">{entry.date}</span>
+                          <span className={`text-sm font-mono-data font-semibold ${isCredit ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {isCredit ? '+' : '−'}{entry.amount.toLocaleString()} ₽
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
