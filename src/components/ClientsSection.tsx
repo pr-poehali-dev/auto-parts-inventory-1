@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { Client, ClientOrder } from '@/data/mockData';
-import { getClients, createClient, updateClient, getOrders } from '@/api';
+import { getClients, getClient, createClient, updateClient, getOrders } from '@/api';
 import ClientCard from '@/components/ClientCard';
 
 function dbToClient(r: Record<string, unknown>): Client {
@@ -297,7 +297,10 @@ export default function ClientsSection() {
                   <div
                     key={client.id}
                     className="bg-white border border-border rounded-xl p-4 cursor-pointer hover:border-foreground/30 transition-all animate-fade-in"
-                    onClick={() => !client.isDeleted && setSelected(client)}
+                    onClick={() => {
+                      if (client.isDeleted) return;
+                      getClient(client.id).then((fresh) => setSelected(dbToClient(fresh as Record<string, unknown>)));
+                    }}
                   >
                     <div className="flex items-start gap-3">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 ${
