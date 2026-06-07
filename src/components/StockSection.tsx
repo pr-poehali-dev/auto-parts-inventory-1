@@ -13,7 +13,7 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
   const [sortBy, setSortBy] = useState<'name' | 'quantity' | 'price'>('name');
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPart, setNewPart] = useState({
-    article: '', name: '', brand: '', category: CATEGORIES[0], quantity: 0, minQuantity: 3, price: 0, location: '',
+    article: '', oemArticle: '', name: '', brand: '', category: CATEGORIES[0], quantity: 0, minQuantity: 3, price: 0, location: '',
   });
 
   const filtered = parts
@@ -39,7 +39,7 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
     };
     setParts((prev) => [...prev, part]);
     setShowAddModal(false);
-    setNewPart({ article: '', name: '', brand: '', category: CATEGORIES[0], quantity: 0, minQuantity: 3, price: 0, location: '' });
+    setNewPart({ article: '', oemArticle: '', name: '', brand: '', category: CATEGORIES[0], quantity: 0, minQuantity: 3, price: 0, location: '' });
   };
 
   const stockIndicator = (qty: number, min: number) => {
@@ -129,8 +129,15 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${stockIndicator(part.quantity, part.minQuantity)}`} />
                   <span className="text-sm font-medium">{part.name}</span>
                 </div>
-                <div className="font-mono-data text-xs text-muted-foreground mt-0.5 ml-3.5">
-                  {part.article} · {part.brand}
+                <div className="font-mono-data text-xs text-muted-foreground mt-0.5 ml-3.5 flex items-center gap-1.5 flex-wrap">
+                  <span>{part.article}</span>
+                  {part.oemArticle && (
+                    <>
+                      <span className="text-border">·</span>
+                      <span className="text-blue-500" title="OEM артикул">{part.oemArticle}</span>
+                    </>
+                  )}
+                  {part.brand && <><span className="text-border">·</span><span>{part.brand}</span></>}
                 </div>
               </div>
               <span className="text-xs text-muted-foreground">{part.category}</span>
@@ -160,18 +167,20 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
             </div>
             <div className="space-y-3">
               {[
-                { key: 'article', label: 'Артикул *', type: 'text' },
-                { key: 'name', label: 'Наименование *', type: 'text' },
-                { key: 'brand', label: 'Бренд', type: 'text' },
-                { key: 'location', label: 'Место хранения', type: 'text' },
-              ].map(({ key, label, type }) => (
+                { key: 'article', label: 'Артикул *', type: 'text', placeholder: 'Каталожный номер' },
+                { key: 'oemArticle', label: 'Оригинальный артикул (OEM)', type: 'text', placeholder: 'Заводской номер производителя' },
+                { key: 'name', label: 'Наименование *', type: 'text', placeholder: '' },
+                { key: 'brand', label: 'Бренд', type: 'text', placeholder: '' },
+                { key: 'location', label: 'Место хранения', type: 'text', placeholder: '' },
+              ].map(({ key, label, type, placeholder }) => (
                 <div key={key}>
                   <label className="block text-xs text-muted-foreground mb-1">{label}</label>
                   <input
                     type={type}
                     value={(newPart as Record<string, unknown>)[key] as string}
                     onChange={(e) => setNewPart((p) => ({ ...p, [key]: e.target.value }))}
-                    className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder={placeholder}
+                    className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono-data placeholder:font-sans placeholder:text-muted-foreground/60"
                   />
                 </div>
               ))}

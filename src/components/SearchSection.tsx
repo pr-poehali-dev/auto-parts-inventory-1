@@ -24,6 +24,7 @@ export default function SearchSection({ onSelectPart }: SearchSectionProps) {
     const found = mockParts.filter(
       (p) =>
         p.article.toLowerCase().includes(q) ||
+        p.oemArticle?.toLowerCase().includes(q) ||
         p.name.toLowerCase().includes(q) ||
         p.brand.toLowerCase().includes(q) ||
         p.barcode?.includes(q)
@@ -54,8 +55,13 @@ export default function SearchSection({ onSelectPart }: SearchSectionProps) {
           <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded shrink-0">аналог</span>
         )}
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono-data font-medium text-sm text-foreground">{part.article}</span>
+            {part.oemArticle && (
+              <span className="font-mono-data text-xs text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded" title="OEM">
+                OEM: {part.oemArticle}
+              </span>
+            )}
             <span className="text-xs text-muted-foreground">{part.brand}</span>
           </div>
           <div className="text-sm text-muted-foreground truncate">{part.name}</div>
@@ -78,7 +84,7 @@ export default function SearchSection({ onSelectPart }: SearchSectionProps) {
           type="text"
           value={query}
           onChange={(e) => handleSearch(e.target.value)}
-          placeholder="Артикул, наименование, бренд или штрихкод..."
+          placeholder="Артикул, OEM, наименование, бренд или штрихкод..."
           className="w-full pl-10 pr-4 py-3 bg-white border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
           autoFocus
         />

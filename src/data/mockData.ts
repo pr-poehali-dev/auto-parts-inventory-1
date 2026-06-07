@@ -9,6 +9,7 @@ export interface Part {
   price: number;
   location: string;
   analogs: string[];
+  oemArticle?: string;
   barcode?: string;
   lastMovement?: string;
 }
