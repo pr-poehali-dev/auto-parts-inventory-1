@@ -10,6 +10,8 @@ export default function ClientsSection() {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'orders' | 'spent'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [group, setGroup] = useState<'all' | 'new' | 'debt' | 'active' | 'deleted'>('all');
+  const [deleted, setDeleted] = useState<Set<string>>(new Set());
   const [form, setForm] = useState<Partial<Client>>({
     type: 'individual',
     firstName: '',
@@ -29,7 +31,35 @@ export default function ClientsSection() {
     else { setSortBy(field); setSortDir('asc'); }
   };
 
+  const isNew = (c: Client) => {
+    const d = new Date(c.createdAt);
+    const diff = (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24);
+    return diff <= 30;
+  };
+  const hasDebt = (c: Client) => {
+    const orders = mockClientOrders.filter((o) => o.clientId === c.id && o.status !== 'cancelled');
+    return orders.some((o) => o.prepaid < o.total) || c.balance < 0;
+  };
+  const hasActive = (c: Client) =>
+    mockClientOrders.some((o) => o.clientId === c.id && (o.status === 'new' || o.status === 'in_progress'));
+
+  const counts = {
+    all: clients.filter((c) => !deleted.has(c.id)).length,
+    new: clients.filter((c) => !deleted.has(c.id) && isNew(c)).length,
+    debt: clients.filter((c) => !deleted.has(c.id) && hasDebt(c)).length,
+    active: clients.filter((c) => !deleted.has(c.id) && hasActive(c)).length,
+    deleted: deleted.size,
+  };
+
   const filtered = clients
+    .filter((c) => {
+      if (group === 'deleted') return deleted.has(c.id);
+      if (deleted.has(c.id)) return false;
+      if (group === 'new') return isNew(c);
+      if (group === 'debt') return hasDebt(c);
+      if (group === 'active') return hasActive(c);
+      return true;
+    })
     .filter((c) => {
       const q = search.toLowerCase();
       const name = c.type === 'company'
@@ -127,39 +157,112 @@ export default function ClientsSection() {
         </button>
       </div>
 
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <span className="text-xs text-muted-foreground mr-1">Сортировка:</span>
-        {([
-          { id: 'name', label: 'По алфавиту', icon: 'ArrowUpAZ' },
-          { id: 'date', label: 'По дате', icon: 'Calendar' },
-          { id: 'orders', label: 'По заказам', icon: 'ShoppingCart' },
-          { id: 'spent', label: 'По сумме', icon: 'TrendingUp' },
-        ] as const).map((opt) => (
-          <button
-            key={opt.id}
-            onClick={() => toggleSort(opt.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${
-              sortBy === opt.id
-                ? 'bg-foreground text-background border-foreground'
-                : 'bg-white text-muted-foreground border-border hover:text-foreground'
-            }`}
-          >
-            <Icon name={opt.icon as 'Calendar'} size={12} />
-            {opt.label}
-            {sortBy === opt.id && (
-              <Icon name={sortDir === 'asc' ? 'ArrowUp' : 'ArrowDown'} size={11} />
-            )}
-          </button>
-        ))}
-        <span className="text-xs text-muted-foreground ml-auto">{filtered.length} клиентов</span>
-      </div>
+      <div className="flex gap-4">
+        {/* Левая панель групп */}
+        <div className="w-52 shrink-0 hidden md:block">
+          <div className="bg-white border border-border rounded-xl overflow-hidden">
+            {([
+              { id: 'all',     label: 'Все клиенты',          icon: 'Users' },
+              { id: 'new',     label: 'Новые',                icon: 'UserPlus' },
+              { id: 'debt',    label: 'Долг по балансу',      icon: 'AlertTriangle' },
+              { id: 'active',  label: 'С активными заказами', icon: 'ShoppingCart' },
+              { id: 'deleted', label: 'Удалённые',            icon: 'Trash2' },
+            ] as const).map((g, i, arr) => (
+              <button
+                key={g.id}
+                onClick={() => setGroup(g.id)}
+                className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors ${
+                  i !== arr.length - 1 ? 'border-b border-border' : ''
+                } ${
+                  group === g.id
+                    ? 'bg-blue-500 text-white font-medium'
+                    : 'text-foreground hover:bg-muted/60'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Icon name={g.icon as 'Users'} size={14} />
+                  {g.label}
+                </div>
+                <span className={`text-xs font-mono-data font-semibold ${
+                  group === g.id ? 'text-white/90' : counts[g.id] === 0 ? 'text-muted-foreground' : 'text-foreground'
+                }`}>
+                  {counts[g.id]}
+                </span>
+              </button>
+            ))}
+          </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {/* Сортировка под панелью */}
+          <div className="mt-3 space-y-1">
+            <div className="text-xs text-muted-foreground px-1 mb-1">Сортировка</div>
+            {([
+              { id: 'name',   label: 'По алфавиту', icon: 'ArrowUpAZ' },
+              { id: 'date',   label: 'По дате',      icon: 'Calendar' },
+              { id: 'orders', label: 'По заказам',   icon: 'ShoppingCart' },
+              { id: 'spent',  label: 'По сумме',     icon: 'TrendingUp' },
+            ] as const).map((opt) => (
+              <button
+                key={opt.id}
+                onClick={() => toggleSort(opt.id)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-all ${
+                  sortBy === opt.id
+                    ? 'bg-foreground text-background'
+                    : 'bg-white text-muted-foreground border border-border hover:text-foreground'
+                }`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <Icon name={opt.icon as 'Calendar'} size={12} />
+                  {opt.label}
+                </div>
+                {sortBy === opt.id && <Icon name={sortDir === 'asc' ? 'ArrowUp' : 'ArrowDown'} size={11} />}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Мобильные группы — горизонтальный скролл */}
+        <div className="md:hidden -mx-0 overflow-x-auto pb-1">
+          <div className="flex gap-2 min-w-max">
+            {([
+              { id: 'all',     label: 'Все' },
+              { id: 'new',     label: 'Новые' },
+              { id: 'debt',    label: 'Долг' },
+              { id: 'active',  label: 'Активные' },
+              { id: 'deleted', label: 'Удалённые' },
+            ] as const).map((g) => (
+              <button
+                key={g.id}
+                onClick={() => setGroup(g.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all shrink-0 ${
+                  group === g.id
+                    ? 'bg-blue-500 text-white border-blue-500'
+                    : 'bg-white text-muted-foreground border-border'
+                }`}
+              >
+                {g.label}
+                <span className={`font-mono-data ${group === g.id ? 'text-white/80' : 'text-muted-foreground'}`}>{counts[g.id]}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-3 md:hidden">
+            <span className="text-xs text-muted-foreground">{filtered.length} клиентов</span>
+          </div>
+          <div className="hidden md:flex items-center justify-between mb-3">
+            <span className="text-sm font-medium">
+              {{all:'Все клиенты',new:'Новые',debt:'Долг по балансу',active:'С активными заказами',deleted:'Удалённые'}[group]}
+            </span>
+            <span className="text-xs text-muted-foreground">{filtered.length} клиентов</span>
+          </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {filtered.map((client) => (
           <div
             key={client.id}
-            onClick={() => setSelected(client)}
-            className="bg-white border border-border rounded-lg p-4 cursor-pointer hover:shadow-md hover:border-foreground/20 transition-all animate-fade-in group"
+            onClick={() => group !== 'deleted' && setSelected(client)}
+            className={`bg-white border border-border rounded-lg p-4 transition-all animate-fade-in group ${group === 'deleted' ? 'opacity-60' : 'cursor-pointer hover:shadow-md hover:border-foreground/20'}`}
           >
             <div className="flex items-start gap-3">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 ${
@@ -217,15 +320,34 @@ export default function ClientsSection() {
                 </div>
               )}
             </div>
+
+            {/* Кнопки удаления/восстановления */}
+            {group === 'deleted' ? (
+              <button
+                onClick={(e) => { e.stopPropagation(); setDeleted((d) => { const s = new Set(d); s.delete(client.id); return s; }); }}
+                className="mt-3 w-full py-1.5 text-xs border border-emerald-200 text-emerald-600 rounded-md hover:bg-emerald-50 transition-colors flex items-center justify-center gap-1"
+              >
+                <Icon name="Undo2" size={12} /> Восстановить
+              </button>
+            ) : (
+              <button
+                onClick={(e) => { e.stopPropagation(); setDeleted((d) => new Set([...d, client.id])); if (group !== 'all') setGroup('all'); }}
+                className="mt-3 w-full py-1.5 text-xs border border-red-100 text-red-400 rounded-md hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1"
+              >
+                <Icon name="Trash2" size={12} /> Удалить
+              </button>
+            )}
           </div>
         ))}
 
         {filtered.length === 0 && (
-          <div className="col-span-3 py-16 text-center text-muted-foreground">
+          <div className="col-span-2 py-16 text-center text-muted-foreground">
             <Icon name="Users" size={40} className="mx-auto mb-3 opacity-20" />
             <p className="text-sm">Клиентов не найдено</p>
           </div>
         )}
+      </div>
+        </div>
       </div>
 
       {showAdd && (
