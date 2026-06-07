@@ -205,6 +205,155 @@ export const mockParts: Part[] = [
   },
 ];
 
+export interface Client {
+  id: string;
+  type: 'individual' | 'company';
+  lastName?: string;
+  firstName: string;
+  middleName?: string;
+  companyName?: string;
+  phone: string;
+  email?: string;
+  city?: string;
+  address?: string;
+  note?: string;
+  createdAt: string;
+  totalOrders: number;
+  totalSpent: number;
+}
+
+export interface OrderItem {
+  article: string;
+  name: string;
+  brand: string;
+  quantity: number;
+  price: number;
+}
+
+export interface ClientOrder {
+  id: string;
+  clientId: string;
+  date: string;
+  status: 'new' | 'in_progress' | 'done' | 'cancelled';
+  items: OrderItem[];
+  total: number;
+  note?: string;
+}
+
+export const mockClients: Client[] = [
+  {
+    id: 'c1',
+    type: 'individual',
+    lastName: 'Иванов',
+    firstName: 'Алексей',
+    middleName: 'Сергеевич',
+    phone: '+7 (905) 123-45-67',
+    email: 'ivanov@mail.ru',
+    city: 'Москва',
+    address: 'ул. Ленина, 12, кв. 5',
+    createdAt: '2026-03-15',
+    totalOrders: 5,
+    totalSpent: 18750,
+  },
+  {
+    id: 'c2',
+    type: 'company',
+    firstName: 'Менеджер',
+    companyName: 'Авто Мастер ООО',
+    phone: '+7 (495) 987-65-43',
+    email: 'automaster@company.ru',
+    city: 'Москва',
+    address: 'Промзона, корп. 7',
+    createdAt: '2026-01-10',
+    totalOrders: 12,
+    totalSpent: 87400,
+  },
+  {
+    id: 'c3',
+    type: 'individual',
+    lastName: 'Петрова',
+    firstName: 'Мария',
+    phone: '+7 (916) 234-56-78',
+    city: 'Подольск',
+    createdAt: '2026-05-01',
+    totalOrders: 2,
+    totalSpent: 4200,
+  },
+  {
+    id: 'c4',
+    type: 'company',
+    firstName: 'Администратор',
+    companyName: 'СТО Гараж №1',
+    phone: '+7 (499) 111-22-33',
+    email: 'garazh@sto.ru',
+    city: 'Одинцово',
+    createdAt: '2026-02-20',
+    totalOrders: 8,
+    totalSpent: 52100,
+  },
+  {
+    id: 'c5',
+    type: 'individual',
+    lastName: 'Сидоров',
+    firstName: 'Дмитрий',
+    middleName: 'Александрович',
+    phone: '+7 (926) 555-44-33',
+    email: 'sidorov@yandex.ru',
+    city: 'Москва',
+    createdAt: '2026-04-18',
+    totalOrders: 3,
+    totalSpent: 9600,
+  },
+];
+
+export const mockClientOrders: ClientOrder[] = [
+  {
+    id: 'o1', clientId: 'c1', date: '2026-06-05', status: 'done',
+    items: [
+      { article: 'OP-641/1', name: 'Фильтр масляный', brand: 'Mann', quantity: 2, price: 380 },
+      { article: 'NGK-BKR6E', name: 'Свеча зажигания', brand: 'NGK', quantity: 4, price: 220 },
+    ],
+    total: 1640, note: 'Замена масла',
+  },
+  {
+    id: 'o2', clientId: 'c1', date: '2026-05-20', status: 'done',
+    items: [
+      { article: 'C2674', name: 'Фильтр воздушный', brand: 'Mann', quantity: 1, price: 520 },
+    ],
+    total: 520,
+  },
+  {
+    id: 'o3', clientId: 'c2', date: '2026-06-07', status: 'in_progress',
+    items: [
+      { article: 'TRW-BF-L04', name: 'Колодки тормозные', brand: 'TRW', quantity: 4, price: 1850 },
+      { article: 'FDB1640', name: 'Колодки тормозные', brand: 'Ferodo', quantity: 2, price: 1980 },
+    ],
+    total: 11360, note: 'Оптовый заказ',
+  },
+  {
+    id: 'o4', clientId: 'c2', date: '2026-06-01', status: 'done',
+    items: [
+      { article: 'SKF-VKBA3450', name: 'Ступичный подшипник', brand: 'SKF', quantity: 2, price: 4200 },
+    ],
+    total: 8400,
+  },
+  {
+    id: 'o5', clientId: 'c4', date: '2026-06-06', status: 'new',
+    items: [
+      { article: 'BOSCH-0451103258', name: 'Фильтр топливный', brand: 'Bosch', quantity: 3, price: 680 },
+      { article: 'C2674', name: 'Фильтр воздушный', brand: 'Mann', quantity: 3, price: 520 },
+    ],
+    total: 3600,
+  },
+  {
+    id: 'o6', clientId: 'c5', date: '2026-05-25', status: 'done',
+    items: [
+      { article: 'FAG713617010B', name: 'Ступичный подшипник', brand: 'FAG', quantity: 1, price: 3900 },
+    ],
+    total: 3900,
+  },
+];
+
 export const mockMovements: Movement[] = [
   { id: '1', date: '2026-06-07', article: 'NGK-BKR6E', partName: 'Свеча зажигания', type: 'out', quantity: 8, note: 'Продажа' },
   { id: '2', date: '2026-06-06', article: 'TRW-BF-L04', partName: 'Колодки тормозные передние', type: 'in', quantity: 6, note: 'Поступление' },
