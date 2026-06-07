@@ -25,9 +25,13 @@ def handler(event: dict, context) -> dict:
         return {'statusCode': 200, 'headers': cors_headers(), 'body': ''}
 
     method = event.get('httpMethod', 'GET')
-    path = event.get('path', '/')
-    parts_path = path.split('/')
-    part_id = parts_path[-1] if len(parts_path) > 1 and parts_path[-1] not in ('', 'parts') else None
+    qs = event.get('queryStringParameters') or {}
+    body_raw = event.get('body') or '{}'
+
+    # ID всегда через ?id=
+    part_id = qs.get('id')
+    # import через ?action=import
+    action = qs.get('action', '')
 
     conn = get_conn()
     cur = conn.cursor()
@@ -52,8 +56,28 @@ def handler(event: dict, context) -> dict:
             cols = [d[0] for d in cur.description]
             return resp(200, dict(zip(cols, row)))
 
+        if method == 'POST' and action == 'import':
+            body = json.loads(body_raw)
+            rows_data = body.get('parts', [])
+            count = 0
+            for p in rows_data:
+                pid = str(uuid.uuid4())
+                cur.execute(f"""
+                    INSERT INTO {SCHEMA}.parts
+                      (id, article, name, brand, category, quantity, min_quantity, price, location, analogs, last_movement)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                """, (
+                    pid, p.get('article', ''), p.get('name', ''), p.get('brand', ''),
+                    p.get('category', 'Расходники'), int(p.get('quantity', 0)),
+                    int(p.get('minQuantity', 0)), float(p.get('price', 0)),
+                    p.get('location', ''), [], date.today().isoformat(),
+                ))
+                count += 1
+            conn.commit()
+            return resp(200, {'imported': count})
+
         if method == 'POST':
-            body = json.loads(event.get('body') or '{}')
+            body = json.loads(body_raw)
             pid = str(uuid.uuid4())
             cur.execute(f"""
                 INSERT INTO {SCHEMA}.parts
@@ -61,19 +85,11 @@ def handler(event: dict, context) -> dict:
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 RETURNING *
             """, (
-                pid,
-                body.get('article', ''),
-                body.get('name', ''),
-                body.get('brand', ''),
-                body.get('category', 'Расходники'),
-                int(body.get('quantity', 0)),
-                int(body.get('minQuantity', 0)),
-                float(body.get('price', 0)),
-                body.get('location', ''),
-                body.get('analogs', []),
-                body.get('oemArticle'),
-                body.get('barcode'),
-                date.today().isoformat(),
+                pid, body.get('article', ''), body.get('name', ''), body.get('brand', ''),
+                body.get('category', 'Расходники'), int(body.get('quantity', 0)),
+                int(body.get('minQuantity', 0)), float(body.get('price', 0)),
+                body.get('location', ''), body.get('analogs', []),
+                body.get('oemArticle'), body.get('barcode'), date.today().isoformat(),
             ))
             row = cur.fetchone()
             cols = [d[0] for d in cur.description]
@@ -81,7 +97,7 @@ def handler(event: dict, context) -> dict:
             return resp(201, dict(zip(cols, row)))
 
         if method == 'PUT' and part_id:
-            body = json.loads(event.get('body') or '{}')
+            body = json.loads(body_raw)
             cur.execute(f"""
                 UPDATE {SCHEMA}.parts SET
                   article = %s, name = %s, brand = %s, category = %s,
@@ -90,19 +106,12 @@ def handler(event: dict, context) -> dict:
                 WHERE id = %s
                 RETURNING *
             """, (
-                body.get('article', ''),
-                body.get('name', ''),
-                body.get('brand', ''),
-                body.get('category', 'Расходники'),
-                int(body.get('quantity', 0)),
-                int(body.get('minQuantity', 0)),
-                float(body.get('price', 0)),
-                body.get('location', ''),
-                body.get('analogs', []),
-                body.get('oemArticle'),
-                body.get('barcode'),
-                date.today().isoformat(),
-                part_id,
+                body.get('article', ''), body.get('name', ''), body.get('brand', ''),
+                body.get('category', 'Расходники'), int(body.get('quantity', 0)),
+                int(body.get('minQuantity', 0)), float(body.get('price', 0)),
+                body.get('location', ''), body.get('analogs', []),
+                body.get('oemArticle'), body.get('barcode'),
+                date.today().isoformat(), part_id,
             ))
             row = cur.fetchone()
             if not row:
@@ -118,35 +127,6 @@ def handler(event: dict, context) -> dict:
             if not row:
                 return resp(404, {'error': 'Не найдено'})
             return resp(200, {'ok': True})
-
-        # Bulk import
-        if method == 'POST' and 'import' in path:
-            body = json.loads(event.get('body') or '{}')
-            rows_data = body.get('parts', [])
-            count = 0
-            for p in rows_data:
-                pid = str(uuid.uuid4())
-                cur.execute(f"""
-                    INSERT INTO {SCHEMA}.parts
-                      (id, article, name, brand, category, quantity, min_quantity, price, location, analogs, last_movement)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                    ON CONFLICT (id) DO NOTHING
-                """, (
-                    pid,
-                    p.get('article', ''),
-                    p.get('name', ''),
-                    p.get('brand', ''),
-                    p.get('category', 'Расходники'),
-                    int(p.get('quantity', 0)),
-                    int(p.get('minQuantity', 0)),
-                    float(p.get('price', 0)),
-                    p.get('location', ''),
-                    [],
-                    date.today().isoformat(),
-                ))
-                count += 1
-            conn.commit()
-            return resp(200, {'imported': count})
 
         return resp(405, {'error': 'Метод не поддерживается'})
 
