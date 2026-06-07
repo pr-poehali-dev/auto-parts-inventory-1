@@ -8,7 +8,7 @@ interface Props {
 }
 
 const STATUS_MAP = {
-  new: { label: 'Новый', cls: 'text-blue-600 bg-blue-50' },
+  new: { label: 'Новый', cls: 'text-yellow-700 bg-yellow-50' },
   in_progress: { label: 'В работе', cls: 'text-amber-600 bg-amber-50' },
   done: { label: 'Выполнен', cls: 'text-emerald-600 bg-emerald-50' },
   cancelled: { label: 'Отменён', cls: 'text-muted-foreground bg-muted' },
@@ -190,7 +190,7 @@ export default function ClientCard({ client, onBack }: Props) {
       <div className="bg-white border border-border rounded-xl p-5">
         <div className="flex items-start gap-4">
           <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold shrink-0 ${
-            client.type === 'company' ? 'bg-blue-100 text-blue-700' : 'bg-muted text-foreground'
+            client.type === 'company' ? 'bg-yellow-100 text-yellow-800' : 'bg-muted text-foreground'
           }`}>
             {clientInitials}
           </div>
@@ -198,7 +198,7 @@ export default function ClientCard({ client, onBack }: Props) {
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-semibold">{clientName}</h2>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                client.type === 'company' ? 'bg-blue-50 text-blue-700' : 'bg-muted text-muted-foreground'
+                client.type === 'company' ? 'bg-yellow-50 text-yellow-800' : 'bg-muted text-muted-foreground'
               }`}>
                 {client.type === 'company' ? 'Организация' : 'Частное лицо'}
               </span>

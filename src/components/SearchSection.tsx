@@ -87,7 +87,7 @@ export default function SearchSection({ onSelectPart }: SearchSectionProps) {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono-data font-medium text-sm text-foreground">{part.article}</span>
             {part.oemArticle && (
-              <span className="font-mono-data text-xs text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
+              <span className="font-mono-data text-xs text-yellow-800 bg-yellow-50 px-1.5 py-0.5 rounded">
                 OEM: {part.oemArticle}
               </span>
             )}
@@ -173,18 +173,18 @@ export default function SearchSection({ onSelectPart }: SearchSectionProps) {
           {/* Аналоги по OEM-совпадению */}
           {analogsByOem.length > 0 && (
             <>
-              <div className="px-4 py-2 bg-blue-50 border-t border-border flex items-center gap-2">
-                <Icon name="Tag" size={14} className="text-blue-600" />
-                <span className="text-xs font-medium text-blue-700 uppercase tracking-wide">
+              <div className="px-4 py-2 bg-yellow-50 border-t border-border flex items-center gap-2">
+                <Icon name="Tag" size={14} className="text-yellow-600" />
+                <span className="text-xs font-medium text-yellow-800 uppercase tracking-wide">
                   Заменители под оригинал: {analogsByOem.length}
                 </span>
-                <span className="text-xs text-blue-500 ml-auto">OEM: {query.toUpperCase()}</span>
+                <span className="text-xs text-yellow-700 ml-auto">OEM: {query.toUpperCase()}</span>
               </div>
               {analogsByOem.map((part) => (
                 <PartRow
                   key={part.id}
                   part={part}
-                  tag={<span className="text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded shrink-0">OEM замена</span>}
+                  tag={<span className="text-xs text-yellow-800 bg-yellow-50 border border-yellow-200 px-2 py-0.5 rounded shrink-0">OEM замена</span>}
                 />
               ))}
             </>

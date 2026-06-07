@@ -134,7 +134,7 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
                   {part.oemArticle && (
                     <>
                       <span className="text-border">·</span>
-                      <span className="text-blue-500" title="OEM артикул">{part.oemArticle}</span>
+                      <span className="text-yellow-600" title="OEM артикул">{part.oemArticle}</span>
                     </>
                   )}
                   {part.brand && <><span className="text-border">·</span><span>{part.brand}</span></>}

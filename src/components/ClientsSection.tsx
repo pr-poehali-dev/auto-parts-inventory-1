@@ -175,7 +175,7 @@ export default function ClientsSection() {
                   i !== arr.length - 1 ? 'border-b border-border' : ''
                 } ${
                   group === g.id
-                    ? 'bg-blue-500 text-white font-medium'
+                    ? 'bg-yellow-400 text-black font-medium'
                     : 'text-foreground hover:bg-muted/60'
                 }`}
               >
@@ -235,7 +235,7 @@ export default function ClientsSection() {
                 onClick={() => setGroup(g.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all shrink-0 ${
                   group === g.id
-                    ? 'bg-blue-500 text-white border-blue-500'
+                    ? 'bg-yellow-400 text-black border-yellow-400'
                     : 'bg-white text-muted-foreground border-border'
                 }`}
               >
@@ -267,7 +267,7 @@ export default function ClientsSection() {
             <div className="flex items-start gap-3">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 ${
                 client.type === 'company'
-                  ? 'bg-blue-100 text-blue-700'
+                  ? 'bg-yellow-100 text-yellow-800'
                   : 'bg-muted text-foreground'
               }`}>
                 {clientInitials(client)}

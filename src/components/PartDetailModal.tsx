@@ -67,7 +67,7 @@ export default function PartDetailModal({ part, onClose }: Props) {
           <div className="border border-border rounded-lg p-3">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-1.5">
-                <Icon name="Tag" size={13} className="text-blue-500" />
+                <Icon name="Tag" size={13} className="text-yellow-500" />
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Оригинальный артикул (OEM)</span>
               </div>
               {!editingOem && (
@@ -108,7 +108,7 @@ export default function PartDetailModal({ part, onClose }: Props) {
               <div className="flex items-center gap-2">
                 {oem ? (
                   <>
-                    <span className="font-mono-data text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">{oem}</span>
+                    <span className="font-mono-data text-sm font-medium text-yellow-800 bg-yellow-50 px-2 py-1 rounded">{oem}</span>
                     {oemSaved && (
                       <span className="text-xs text-emerald-600 flex items-center gap-1 animate-fade-in">
                         <Icon name="CheckCircle" size={12} /> Сохранено
