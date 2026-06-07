@@ -35,7 +35,11 @@ export default function ClientsSection() {
       const name = c.type === 'company'
         ? c.companyName?.toLowerCase()
         : `${c.lastName} ${c.firstName} ${c.middleName}`.toLowerCase();
-      return !q || name?.includes(q) || c.phone.includes(q) || c.email?.toLowerCase().includes(q);
+      const phoneDigits = c.phone.replace(/\D/g, '');
+      const lastFour = phoneDigits.slice(-4);
+      const qDigits = q.replace(/\D/g, '');
+      const phoneMatch = c.phone.includes(q) || (qDigits.length >= 4 && lastFour.endsWith(qDigits));
+      return !q || name?.includes(q) || phoneMatch || c.email?.toLowerCase().includes(q);
     })
     .sort((a, b) => {
       let cmp = 0;
