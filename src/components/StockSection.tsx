@@ -220,22 +220,25 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-muted-foreground mb-1">Кол-во</label>
-                  <input type="number" min={0} value={newPart.quantity}
-                    onChange={(e) => setNewPart((p) => ({ ...p, quantity: +e.target.value }))}
+                  <input inputMode="numeric" value={newPart.quantity === 0 ? '' : newPart.quantity}
+                    placeholder="0"
+                    onChange={(e) => setNewPart((p) => ({ ...p, quantity: parseInt(e.target.value.replace(/\D/g, '')) || 0 }))}
                     className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
                 <div>
                   <label className="block text-xs text-muted-foreground mb-1">Мин. остаток</label>
-                  <input type="number" min={0} value={newPart.minQuantity}
-                    onChange={(e) => setNewPart((p) => ({ ...p, minQuantity: +e.target.value }))}
+                  <input inputMode="numeric" value={newPart.minQuantity === 0 ? '' : newPart.minQuantity}
+                    placeholder="0"
+                    onChange={(e) => setNewPart((p) => ({ ...p, minQuantity: parseInt(e.target.value.replace(/\D/g, '')) || 0 }))}
                     className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
                 <div>
                   <label className="block text-xs text-muted-foreground mb-1">Цена, ₽</label>
-                  <input type="number" min={0} value={newPart.price}
-                    onChange={(e) => setNewPart((p) => ({ ...p, price: +e.target.value }))}
+                  <input inputMode="decimal" value={newPart.price === 0 ? '' : newPart.price}
+                    placeholder="0"
+                    onChange={(e) => setNewPart((p) => ({ ...p, price: parseFloat(e.target.value.replace(/[^\d.]/g, '')) || 0 }))}
                     className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>

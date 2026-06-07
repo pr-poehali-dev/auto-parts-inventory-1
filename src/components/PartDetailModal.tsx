@@ -198,20 +198,23 @@ export default function PartDetailModal({ part, onClose, onUpdated, onDeleted }:
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs text-muted-foreground mb-1">Количество</label>
-                  <input type="number" min={0} value={editForm.quantity}
-                    onChange={(e) => setEditForm((f) => ({ ...f, quantity: +e.target.value }))}
+                  <input inputMode="numeric" value={editForm.quantity === 0 ? '' : editForm.quantity}
+                    placeholder="0"
+                    onChange={(e) => setEditForm((f) => ({ ...f, quantity: parseInt(e.target.value.replace(/\D/g, '')) || 0 }))}
                     className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
                 <div>
                   <label className="block text-xs text-muted-foreground mb-1">Мин. остаток</label>
-                  <input type="number" min={0} value={editForm.minQuantity}
-                    onChange={(e) => setEditForm((f) => ({ ...f, minQuantity: +e.target.value }))}
+                  <input inputMode="numeric" value={editForm.minQuantity === 0 ? '' : editForm.minQuantity}
+                    placeholder="0"
+                    onChange={(e) => setEditForm((f) => ({ ...f, minQuantity: parseInt(e.target.value.replace(/\D/g, '')) || 0 }))}
                     className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
                 <div>
                   <label className="block text-xs text-muted-foreground mb-1">Цена, ₽</label>
-                  <input type="number" min={0} value={editForm.price}
-                    onChange={(e) => setEditForm((f) => ({ ...f, price: +e.target.value }))}
+                  <input inputMode="decimal" value={editForm.price === 0 ? '' : editForm.price}
+                    placeholder="0"
+                    onChange={(e) => setEditForm((f) => ({ ...f, price: parseFloat(e.target.value.replace(/[^\d.]/g, '')) || 0 }))}
                     className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
               </div>
