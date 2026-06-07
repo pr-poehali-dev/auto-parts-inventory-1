@@ -244,27 +244,31 @@ export default function ClientsSection() {
             ))}
           </div>
 
-          <div className="mt-3 space-y-1">
-            <div className="text-xs text-muted-foreground px-1 mb-1">Сортировка</div>
+          <div className="mt-3 bg-white border border-border rounded-xl overflow-hidden">
+            <div className="px-4 py-2 border-b border-border">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Сортировка</span>
+            </div>
             {([
               { id: 'name', label: 'По алфавиту', icon: 'ArrowUpAZ' },
               { id: 'date', label: 'По дате', icon: 'Calendar' },
               { id: 'orders', label: 'По заказам', icon: 'ShoppingCart' },
               { id: 'spent', label: 'По сумме', icon: 'TrendingUp' },
-            ] as const).map((s) => (
+            ] as const).map((s, i, arr) => (
               <button
                 key={s.id}
                 onClick={() => toggleSort(s.id)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
-                  sortBy === s.id ? 'bg-muted font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors ${
+                  i !== arr.length - 1 ? 'border-b border-border' : ''
+                } ${
+                  sortBy === s.id ? 'bg-muted font-medium text-foreground' : 'text-foreground hover:bg-muted/60'
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <Icon name={s.icon as 'ArrowUpAZ'} size={13} />
+                  <Icon name={s.icon as 'ArrowUpAZ'} size={14} />
                   {s.label}
                 </div>
                 {sortBy === s.id && (
-                  <Icon name={sortDir === 'asc' ? 'ArrowUp' : 'ArrowDown'} size={12} className="text-muted-foreground" />
+                  <Icon name={sortDir === 'asc' ? 'ArrowUp' : 'ArrowDown'} size={13} className="text-muted-foreground" />
                 )}
               </button>
             ))}
