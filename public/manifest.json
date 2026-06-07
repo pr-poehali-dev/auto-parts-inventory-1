@@ -1,0 +1,24 @@
+{
+  "name": "PartKeeper.pro",
+  "short_name": "PartKeeper",
+  "description": "Система учёта автозапчастей на складе",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn.poehali.dev/projects/2b463ec9-69d1-4be9-bdc9-a61939b858a4/files/78c0d8d9-2acb-4edb-ae0c-ac26cbb3db2a.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "https://cdn.poehali.dev/projects/2b463ec9-69d1-4be9-bdc9-a61939b858a4/files/78c0d8d9-2acb-4edb-ae0c-ac26cbb3db2a.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}
