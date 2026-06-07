@@ -63,7 +63,17 @@ export default function ProfileMenu() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const displayName = user?.name || user?.email?.split('@')[0] || 'Аккаунт';
+  // "Иван Иванович Еловых" → "Еловых И. И."
+  const formatName = (name: string) => {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0];
+    const [first, ...rest] = parts;
+    const lastName = rest[rest.length - 1];
+    const initials = [first, ...rest.slice(0, -1)].map((p) => p[0] + '.').join(' ');
+    return `${lastName} ${initials}`;
+  };
+
+  const displayName = user?.name ? formatName(user.name) : user?.email?.split('@')[0] || 'Аккаунт';
   const initials = (user?.name || user?.email || '?')
     .split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
