@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Icon from '@/components/ui/icon';
-import { Client, ClientOrder, OrderItem, BalanceEntry, Part } from '@/data/mockData';
+import { Client, ClientOrder, OrderItem, BalanceEntry, Part, StatusHistoryEntry } from '@/data/mockData';
 import { getOrders, createOrder, updateOrder, getBalanceHistory, changeBalance, getParts, updateClient, getClient } from '@/api';
 import VinInfo from '@/components/VinInfo';
 
@@ -9,11 +9,14 @@ interface Props {
   onBack: () => void;
 }
 
-const STATUS_MAP = {
-  new: { label: 'Новый', cls: 'text-yellow-700 bg-yellow-50' },
-  in_progress: { label: 'В работе', cls: 'text-amber-600 bg-amber-50' },
-  done: { label: 'Выполнен', cls: 'text-emerald-600 bg-emerald-50' },
-  cancelled: { label: 'Отменён', cls: 'text-muted-foreground bg-muted' },
+const STATUS_MAP: Record<string, { label: string; cls: string; icon: string }> = {
+  new:       { label: 'Новый',              cls: 'text-yellow-700 bg-yellow-50',   icon: 'Clock' },
+  ordered:   { label: 'Заказан',            cls: 'text-blue-600 bg-blue-50',       icon: 'ShoppingCart' },
+  in_stock:  { label: 'Получен на склад',   cls: 'text-purple-600 bg-purple-50',   icon: 'PackageCheck' },
+  issued:    { label: 'Выдан клиенту',      cls: 'text-emerald-600 bg-emerald-50', icon: 'HandCoins' },
+  done:      { label: 'Выполнен',           cls: 'text-emerald-700 bg-emerald-100','icon': 'CheckCircle2' },
+  cancelled: { label: 'Отменён',            cls: 'text-muted-foreground bg-muted', icon: 'XCircle' },
+  in_progress: { label: 'В работе',         cls: 'text-amber-600 bg-amber-50',     icon: 'Wrench' },
 };
 
 function paymentStatus(order: ClientOrder) {
@@ -224,9 +227,20 @@ export default function ClientCard({ client, onBack }: Props) {
     setEditPrepaidId(null);
   };
 
-  const handleStatusChange = async (orderId: string, status: ClientOrder['status']) => {
+  const [statusPopupId, setStatusPopupId] = useState<string | null>(null);
+
+  const closeStatusPopup = useCallback(() => setStatusPopupId(null), []);
+  useEffect(() => {
+    if (!statusPopupId) return;
+    const handler = () => closeStatusPopup();
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [statusPopupId, closeStatusPopup]);
+
+  const handleStatusChange = async (orderId: string, status: string) => {
     const updated = await updateOrder(orderId, { status });
     setOrders((prev) => prev.map((o) => o.id === orderId ? updated as ClientOrder : o));
+    setStatusPopupId(null);
   };
 
   const totalSpent = orders.filter((o) => o.status === 'done').reduce((s, o) => s + o.total, 0);
@@ -565,16 +579,73 @@ export default function ClientCard({ client, onBack }: Props) {
                       {ps === 'paid' && <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full"><Icon name="CheckCircle2" size={12} /> Оплачен</span>}
                       {ps === 'partial' && <span className="flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full"><Icon name="AlertCircle" size={12} /> Частично</span>}
                       {ps === 'unpaid' && <span className="flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full"><Icon name="AlertTriangle" size={12} /> Не оплачен</span>}
-                      <select
-                        value={order.status}
-                        onChange={(e) => handleStatusChange(order.id, e.target.value as ClientOrder['status'])}
-                        onClick={(e) => e.stopPropagation()}
-                        className={`text-xs font-medium px-2 py-0.5 rounded-full border-0 cursor-pointer focus:outline-none ${st.cls}`}
-                      >
-                        {Object.entries(STATUS_MAP).map(([k, v]) => (
-                          <option key={k} value={k}>{v.label}</option>
-                        ))}
-                      </select>
+                      {/* Кнопка статуса */}
+                      <div className="relative">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setStatusPopupId(statusPopupId === order.id ? null : order.id); }}
+                          className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${st?.cls || 'text-muted-foreground bg-muted'}`}
+                        >
+                          <Icon name={(st?.icon || 'Clock') as 'Clock'} size={11} />
+                          {st?.label || order.status}
+                          <Icon name="ChevronDown" size={10} />
+                        </button>
+
+                        {/* Попап выбора статуса + история */}
+                        {statusPopupId === order.id && (
+                          <div
+                            className="absolute right-0 top-full mt-1 w-72 bg-white border border-border rounded-xl shadow-xl z-50 animate-fade-in"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {/* Выбор статуса */}
+                            <div className="p-2 border-b border-border">
+                              <div className="text-xs text-muted-foreground px-2 py-1">Сменить статус</div>
+                              <div className="grid grid-cols-2 gap-1 mt-1">
+                                {Object.entries(STATUS_MAP).map(([k, v]) => (
+                                  <button
+                                    key={k}
+                                    onClick={() => handleStatusChange(order.id, k)}
+                                    className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors text-left ${
+                                      order.status === k
+                                        ? v.cls + ' ring-1 ring-current ring-offset-1'
+                                        : 'text-muted-foreground hover:bg-muted'
+                                    }`}
+                                  >
+                                    <Icon name={v.icon as 'Clock'} size={12} />
+                                    {v.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* История статусов */}
+                            {order.statusHistory && order.statusHistory.length > 0 && (
+                              <div className="p-3">
+                                <div className="text-xs text-muted-foreground mb-2">История изменений</div>
+                                <div className="space-y-2">
+                                  {[...order.statusHistory].reverse().map((h: StatusHistoryEntry, i: number) => {
+                                    const sm = STATUS_MAP[h.status];
+                                    const dt = new Date(h.date);
+                                    const dateStr = dt.toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' });
+                                    const timeStr = dt.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+                                    return (
+                                      <div key={i} className="flex items-start gap-2">
+                                        <div className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${sm?.cls || 'bg-muted text-muted-foreground'}`}>
+                                          <Icon name={(sm?.icon || 'Clock') as 'Clock'} size={10} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="text-xs font-medium">{sm?.label || h.status}</div>
+                                          <div className="text-xs text-muted-foreground">{dateStr} в {timeStr}</div>
+                                          {h.note && <div className="text-xs text-muted-foreground italic">{h.note}</div>}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                       <span className="font-semibold font-mono-data text-sm">{order.total.toLocaleString()} ₽</span>
                     </div>
                   </div>

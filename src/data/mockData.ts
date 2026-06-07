@@ -74,11 +74,18 @@ export interface OrderItem {
   price: number;
 }
 
+export interface StatusHistoryEntry {
+  status: string;
+  date: string;
+  note?: string;
+}
+
 export interface ClientOrder {
   id: string;
   clientId: string;
   date: string;
-  status: 'new' | 'in_progress' | 'done' | 'cancelled';
+  status: string;
+  statusHistory?: StatusHistoryEntry[];
   items: OrderItem[];
   total: number;
   prepaid: number;
