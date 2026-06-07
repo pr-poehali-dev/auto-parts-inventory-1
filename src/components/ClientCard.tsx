@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { Client, ClientOrder, OrderItem, BalanceEntry, Part } from '@/data/mockData';
-import { getOrders, createOrder, updateOrder, getBalanceHistory, changeBalance, getParts } from '@/api';
+import { getOrders, createOrder, updateOrder, getBalanceHistory, changeBalance, getParts, updateClient } from '@/api';
 
 interface Props {
   client: Client;
@@ -49,6 +49,23 @@ export default function ClientCard({ client, onBack }: Props) {
   const [editPrepaidId, setEditPrepaidId] = useState<string | null>(null);
   const [editPrepaidVal, setEditPrepaidVal] = useState('');
 
+  // Редактирование клиента
+  const [editing, setEditing] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editForm, setEditForm] = useState({
+    type: client.type,
+    firstName: client.firstName,
+    lastName: client.lastName || '',
+    middleName: client.middleName || '',
+    companyName: client.companyName || '',
+    phone: client.phone,
+    email: client.email || '',
+    city: client.city || '',
+    address: client.address || '',
+    note: client.note || '',
+  });
+  const [localClient, setLocalClient] = useState<Client>(client);
+
   useEffect(() => {
     Promise.all([
       getOrders(client.id).then((data: ClientOrder[]) => setOrders(data)),
@@ -66,15 +83,37 @@ export default function ClientCard({ client, onBack }: Props) {
     ]).finally(() => setLoading(false));
   }, [client.id]);
 
+  const handleSaveEdit = async () => {
+    setSavingEdit(true);
+    try {
+      const updated = await updateClient(client.id, {
+        type: editForm.type,
+        firstName: editForm.firstName,
+        lastName: editForm.lastName || null,
+        middleName: editForm.middleName || null,
+        companyName: editForm.companyName || null,
+        phone: editForm.phone,
+        email: editForm.email || null,
+        city: editForm.city || null,
+        address: editForm.address || null,
+        note: editForm.note || null,
+      });
+      setLocalClient((prev) => ({ ...prev, ...(updated as Partial<Client>) }));
+      setEditing(false);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const clientName =
-    client.type === 'company'
-      ? client.companyName || client.firstName
-      : [client.lastName, client.firstName, client.middleName].filter(Boolean).join(' ');
+    localClient.type === 'company'
+      ? localClient.companyName || localClient.firstName
+      : [localClient.lastName, localClient.firstName, localClient.middleName].filter(Boolean).join(' ');
 
   const clientInitials =
-    client.type === 'company'
-      ? (client.companyName || 'К').slice(0, 2).toUpperCase()
-      : ((client.lastName?.[0] || '') + (client.firstName?.[0] || '')).toUpperCase() || '?';
+    localClient.type === 'company'
+      ? (localClient.companyName || 'К').slice(0, 2).toUpperCase()
+      : ((localClient.lastName?.[0] || '') + (localClient.firstName?.[0] || '')).toUpperCase() || '?';
 
   const handleArticleSearch = (idx: number, val: string) => {
     setArticleQuery((q) => ({ ...q, [idx]: val }));
@@ -179,29 +218,130 @@ export default function ClientCard({ client, onBack }: Props) {
 
       {/* Карточка клиента */}
       <div className="bg-white border border-border rounded-xl p-5">
-        <div className="flex items-start gap-4">
-          <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold shrink-0 ${
-            client.type === 'company' ? 'bg-yellow-100 text-yellow-800' : 'bg-muted text-foreground'
-          }`}>
-            {clientInitials}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-lg font-semibold">{clientName}</h2>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                client.type === 'company' ? 'bg-yellow-50 text-yellow-800' : 'bg-muted text-muted-foreground'
-              }`}>
-                {client.type === 'company' ? 'Организация' : 'Частное лицо'}
-              </span>
+        {editing ? (
+          /* ── Режим редактирования ── */
+          <div className="space-y-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-semibold">Редактирование клиента</span>
+              <button onClick={() => setEditing(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+                <Icon name="X" size={16} />
+              </button>
             </div>
-            <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1 font-mono-data"><Icon name="Phone" size={13} />{client.phone}</span>
-              {client.email && <span className="flex items-center gap-1"><Icon name="Mail" size={13} />{client.email}</span>}
-              {client.city && <span className="flex items-center gap-1"><Icon name="MapPin" size={13} />{client.city}{client.address ? `, ${client.address}` : ''}</span>}
+
+            <div className="flex gap-2">
+              {(['individual', 'company'] as const).map((t) => (
+                <button key={t} onClick={() => setEditForm((f) => ({ ...f, type: t }))}
+                  className={`flex-1 py-1.5 rounded-md text-sm border transition-colors ${editForm.type === t ? 'border-foreground bg-foreground text-background' : 'border-border text-muted-foreground'}`}>
+                  {t === 'individual' ? 'Физлицо' : 'Организация'}
+                </button>
+              ))}
             </div>
-            {client.note && <div className="mt-2 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2 italic">{client.note}</div>}
+
+            {editForm.type === 'company' && (
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Название организации</label>
+                <input value={editForm.companyName} onChange={(e) => setEditForm((f) => ({ ...f, companyName: e.target.value }))}
+                  className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2">
+              {editForm.type === 'individual' && (
+                <div className="col-span-2">
+                  <label className="block text-xs text-muted-foreground mb-1">Фамилия</label>
+                  <input value={editForm.lastName} onChange={(e) => setEditForm((f) => ({ ...f, lastName: e.target.value }))}
+                    className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                </div>
+              )}
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Имя *</label>
+                <input value={editForm.firstName} onChange={(e) => setEditForm((f) => ({ ...f, firstName: e.target.value }))}
+                  className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              {editForm.type === 'individual' && (
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Отчество</label>
+                  <input value={editForm.middleName} onChange={(e) => setEditForm((f) => ({ ...f, middleName: e.target.value }))}
+                    className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Телефон *</label>
+              <input type="tel" value={editForm.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Email</label>
+                <input type="email" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                  className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Город</label>
+                <input value={editForm.city} onChange={(e) => setEditForm((f) => ({ ...f, city: e.target.value }))}
+                  className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Адрес</label>
+              <input value={editForm.address} onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))}
+                className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Примечание</label>
+              <textarea value={editForm.note} onChange={(e) => setEditForm((f) => ({ ...f, note: e.target.value }))} rows={2}
+                className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <button onClick={() => setEditing(false)}
+                className="flex-1 px-4 py-2 border border-border rounded-md text-sm hover:bg-muted transition-colors">
+                Отмена
+              </button>
+              <button onClick={handleSaveEdit} disabled={savingEdit || !editForm.firstName || !editForm.phone}
+                className="flex-1 px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:bg-foreground/80 disabled:opacity-50 transition-colors">
+                {savingEdit ? 'Сохранение...' : 'Сохранить'}
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* ── Режим просмотра ── */
+          <div className="flex items-start gap-4">
+            <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold shrink-0 ${
+              localClient.type === 'company' ? 'bg-yellow-100 text-yellow-800' : 'bg-muted text-foreground'
+            }`}>
+              {clientInitials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg font-semibold">{clientName}</h2>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                  localClient.type === 'company' ? 'bg-yellow-50 text-yellow-800' : 'bg-muted text-muted-foreground'
+                }`}>
+                  {localClient.type === 'company' ? 'Организация' : 'Частное лицо'}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1 font-mono-data"><Icon name="Phone" size={13} />{localClient.phone}</span>
+                {localClient.email && <span className="flex items-center gap-1"><Icon name="Mail" size={13} />{localClient.email}</span>}
+                {localClient.city && <span className="flex items-center gap-1"><Icon name="MapPin" size={13} />{localClient.city}{localClient.address ? `, ${localClient.address}` : ''}</span>}
+              </div>
+              {localClient.note && <div className="mt-2 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2 italic">{localClient.note}</div>}
+            </div>
+            <button
+              onClick={() => setEditing(true)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-md px-2.5 py-1.5 transition-colors shrink-0"
+            >
+              <Icon name="Pencil" size={12} />
+              Изменить
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-border">
           <div className="text-center">
