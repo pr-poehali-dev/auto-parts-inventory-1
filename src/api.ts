@@ -54,7 +54,7 @@ function authReq(url: string, method = 'GET', body?: unknown, token?: string) {
       return data;
     });
 }
-export const authRegister = (data: { email: string; phone: string; password: string }) =>
+export const authRegister = (data: { email: string; phone: string; name: string; password: string }) =>
   authReq(`${AUTH_URL}?action=register`, 'POST', data);
 export const authLogin = (data: { email: string; password: string }) =>
   authReq(`${AUTH_URL}?action=login`, 'POST', data);
@@ -66,3 +66,5 @@ export const authReset = (token: string, password: string) =>
   authReq(`${AUTH_URL}?action=reset`, 'POST', { token, password });
 export const authLogout = (token: string) =>
   authReq(`${AUTH_URL}?action=logout`, 'POST', undefined, token);
+export const authUpdate = (token: string, data: { name?: string; phone?: string; password?: string }) =>
+  authReq(`${AUTH_URL}?action=update`, 'POST', data, token);

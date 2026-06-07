@@ -89,11 +89,12 @@ def handler(event: dict, context) -> dict:
             if cur.fetchone():
                 return resp(409, {'error': 'Пользователь с таким email уже существует'})
 
+            name = (body.get('name') or '').strip()
             pw_hash = hash_password(password)
             cur.execute(f"""
-                INSERT INTO {SCHEMA}.users (phone, email, password_hash)
-                VALUES (%s, %s, %s) RETURNING id, email, phone
-            """, (phone or None, email, pw_hash))
+                INSERT INTO {SCHEMA}.users (phone, email, password_hash, name)
+                VALUES (%s, %s, %s, %s) RETURNING id, email, phone, name
+            """, (phone or None, email, pw_hash, name or None))
             row = cur.fetchone()
             user_id = str(row[0])
 
@@ -106,7 +107,7 @@ def handler(event: dict, context) -> dict:
             """, (user_id, token, expires))
             conn.commit()
 
-            return resp(201, {'token': token, 'user': {'id': user_id, 'email': email, 'phone': phone}})
+            return resp(201, {'token': token, 'user': {'id': user_id, 'email': email, 'phone': phone, 'name': name}})
 
         # ── LOGIN ─────────────────────────────────────────────
         if method == 'POST' and action == 'login':
@@ -118,7 +119,7 @@ def handler(event: dict, context) -> dict:
 
             pw_hash = hash_password(password)
             cur.execute(f"""
-                SELECT id, email, phone FROM {SCHEMA}.users
+                SELECT id, email, phone, name FROM {SCHEMA}.users
                 WHERE email = %s AND password_hash = %s AND is_active = TRUE
             """, (email, pw_hash))
             row = cur.fetchone()
@@ -134,7 +135,7 @@ def handler(event: dict, context) -> dict:
             """, (user_id, token, expires))
             conn.commit()
 
-            return resp(200, {'token': token, 'user': {'id': user_id, 'email': str(row[1]), 'phone': str(row[2] or '')}})
+            return resp(200, {'token': token, 'user': {'id': user_id, 'email': str(row[1]), 'phone': str(row[2] or ''), 'name': str(row[3] or '')}})
 
         # ── ME (проверка токена) ───────────────────────────────
         if method == 'GET' and action == 'me':
@@ -144,7 +145,7 @@ def handler(event: dict, context) -> dict:
 
             now = datetime.now(timezone.utc)
             cur.execute(f"""
-                SELECT u.id, u.email, u.phone FROM {SCHEMA}.sessions s
+                SELECT u.id, u.email, u.phone, u.name FROM {SCHEMA}.sessions s
                 JOIN {SCHEMA}.users u ON u.id = s.user_id
                 WHERE s.token = %s AND s.expires_at > %s AND u.is_active = TRUE
             """, (token, now))
@@ -152,7 +153,7 @@ def handler(event: dict, context) -> dict:
             if not row:
                 return resp(401, {'error': 'Сессия истекла или недействительна'})
 
-            return resp(200, {'user': {'id': str(row[0]), 'email': str(row[1]), 'phone': str(row[2] or '')}})
+            return resp(200, {'user': {'id': str(row[0]), 'email': str(row[1]), 'phone': str(row[2] or ''), 'name': str(row[3] or '')}})
 
         # ── FORGOT PASSWORD ───────────────────────────────────
         if method == 'POST' and action == 'forgot':
@@ -213,6 +214,44 @@ def handler(event: dict, context) -> dict:
             conn.commit()
 
             return resp(200, {'ok': True})
+
+        # ── UPDATE PROFILE ────────────────────────────────────
+        if method == 'POST' and action == 'update':
+            token = (event.get('headers') or {}).get('X-Session-Token', '')
+            if not token:
+                return resp(401, {'error': 'Не авторизован'})
+            now = datetime.now(timezone.utc)
+            cur.execute(f"""
+                SELECT u.id FROM {SCHEMA}.sessions s
+                JOIN {SCHEMA}.users u ON u.id = s.user_id
+                WHERE s.token = %s AND s.expires_at > %s AND u.is_active = TRUE
+            """, (token, now))
+            row = cur.fetchone()
+            if not row:
+                return resp(401, {'error': 'Сессия истекла'})
+            user_id = row[0]
+
+            fields = []
+            values = []
+            if 'name' in body:
+                fields.append('name = %s')
+                values.append((body['name'] or '').strip() or None)
+            if 'phone' in body:
+                fields.append('phone = %s')
+                values.append((body['phone'] or '').strip() or None)
+            if 'password' in body and body['password']:
+                if len(body['password']) < 6:
+                    return resp(400, {'error': 'Пароль должен быть не менее 6 символов'})
+                fields.append('password_hash = %s')
+                values.append(hash_password(body['password']))
+
+            if fields:
+                values.append(user_id)
+                cur.execute(f"UPDATE {SCHEMA}.users SET {', '.join(fields)} WHERE id = %s RETURNING id, email, phone, name", values)
+                upd = cur.fetchone()
+                conn.commit()
+                return resp(200, {'user': {'id': str(upd[0]), 'email': str(upd[1]), 'phone': str(upd[2] or ''), 'name': str(upd[3] or '')}})
+            return resp(400, {'error': 'Нет данных для обновления'})
 
         # ── LOGOUT ────────────────────────────────────────────
         if method == 'POST' and action == 'logout':

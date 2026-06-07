@@ -7,7 +7,7 @@ type Mode = 'login' | 'register' | 'forgot' | 'reset';
 
 interface AuthResult {
   token: string;
-  user: { id: string; email: string; phone: string };
+  user: { id: string; email: string; phone: string; name: string };
 }
 
 export default function AuthScreen() {
@@ -19,7 +19,7 @@ export default function AuthScreen() {
 
   const [mode, setMode] = useState<Mode>(resetTokenFromUrl ? 'reset' : 'login');
   const [form, setForm] = useState({
-    email: '', phone: '', password: '', password2: '', resetToken: resetTokenFromUrl,
+    email: '', phone: '', name: '', password: '', password2: '', resetToken: resetTokenFromUrl,
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -52,7 +52,7 @@ export default function AuthScreen() {
         if (form.password.length < 6) {
           setError('Пароль должен быть не менее 6 символов'); setLoading(false); return;
         }
-        const res = await authRegister({ email: form.email, phone: form.phone, password: form.password }) as AuthResult;
+        const res = await authRegister({ email: form.email, phone: form.phone, name: form.name, password: form.password }) as AuthResult;
         login(res.token, res.user);
 
       } else if (mode === 'forgot') {
@@ -119,19 +119,33 @@ export default function AuthScreen() {
                 </div>
               )}
 
-              {/* Телефон — только при регистрации */}
+              {/* Имя + Телефон — только при регистрации */}
               {mode === 'register' && (
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Телефон</label>
-                  <input
-                    type="tel"
-                    autoComplete="tel"
-                    value={form.phone}
-                    onChange={(e) => set('phone', e.target.value)}
-                    placeholder="+7 900 000 00 00"
-                    className="w-full px-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
+                <>
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">Имя <span className="text-red-400">*</span></label>
+                    <input
+                      type="text"
+                      autoComplete="name"
+                      required
+                      value={form.name}
+                      onChange={(e) => set('name', e.target.value)}
+                      placeholder="Иван Иванов"
+                      className="w-full px-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">Телефон</label>
+                    <input
+                      type="tel"
+                      autoComplete="tel"
+                      value={form.phone}
+                      onChange={(e) => set('phone', e.target.value)}
+                      placeholder="+7 900 000 00 00"
+                      className="w-full px-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                </>
               )}
 
               {/* Пароль */}

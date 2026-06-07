@@ -1,0 +1,1 @@
+ALTER TABLE t_p26023881_auto_parts_inventory.users ADD COLUMN IF NOT EXISTS name VARCHAR(120);

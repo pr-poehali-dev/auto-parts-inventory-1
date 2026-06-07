@@ -1,10 +1,11 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authMe, authLogout } from '@/api';
 
-interface User {
+export interface User {
   id: string;
   email: string;
   phone: string;
+  name: string;
 }
 
 interface AuthContextValue {
@@ -12,12 +13,13 @@ interface AuthContextValue {
   token: string | null;
   loading: boolean;
   login: (token: string, user: User) => void;
+  setUser: (user: User) => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   user: null, token: null, loading: true,
-  login: () => {}, logout: () => {},
+  login: () => {}, setUser: () => {}, logout: () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -46,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, setUser, logout }}>
       {children}
     </AuthContext.Provider>
   );
