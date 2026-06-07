@@ -357,6 +357,16 @@ export default function ClientsSection() {
                         )}
                       </div>
                     )}
+                    {client.vins && client.vins.length > 0 && !client.isDeleted && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {client.vins.map((vin) => (
+                          <span key={vin} className="inline-flex items-center gap-1 font-mono-data text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">
+                            <Icon name="Car" size={10} />
+                            {vin}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {client.isDeleted && (
                       <div className="mt-2 text-xs text-muted-foreground italic">Клиент удалён</div>
                     )}
