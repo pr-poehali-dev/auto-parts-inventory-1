@@ -157,6 +157,32 @@ export default function ClientsSection() {
         </button>
       </div>
 
+      {/* Мобильные группы — горизонтальный скролл (вне flex-сетки) */}
+      <div className="md:hidden overflow-x-auto pb-1 -mx-1 px-1">
+        <div className="flex gap-2 min-w-max">
+          {([
+            { id: 'all',     label: 'Все' },
+            { id: 'new',     label: 'Новые' },
+            { id: 'debt',    label: 'Долг' },
+            { id: 'active',  label: 'Активные' },
+            { id: 'deleted', label: 'Удалённые' },
+          ] as const).map((g) => (
+            <button
+              key={g.id}
+              onClick={() => setGroup(g.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all shrink-0 ${
+                group === g.id
+                  ? 'bg-yellow-400 text-black border-yellow-400'
+                  : 'bg-white text-muted-foreground border-border'
+              }`}
+            >
+              {g.label}
+              <span className={`font-mono-data ${group === g.id ? 'text-black/70' : 'text-muted-foreground'}`}>{counts[g.id]}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="flex gap-4">
         {/* Левая панель групп */}
         <div className="w-52 shrink-0 hidden md:block">
@@ -220,36 +246,9 @@ export default function ClientsSection() {
           </div>
         </div>
 
-        {/* Мобильные группы — горизонтальный скролл */}
-        <div className="md:hidden -mx-0 overflow-x-auto pb-1">
-          <div className="flex gap-2 min-w-max">
-            {([
-              { id: 'all',     label: 'Все' },
-              { id: 'new',     label: 'Новые' },
-              { id: 'debt',    label: 'Долг' },
-              { id: 'active',  label: 'Активные' },
-              { id: 'deleted', label: 'Удалённые' },
-            ] as const).map((g) => (
-              <button
-                key={g.id}
-                onClick={() => setGroup(g.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all shrink-0 ${
-                  group === g.id
-                    ? 'bg-yellow-400 text-black border-yellow-400'
-                    : 'bg-white text-muted-foreground border-border'
-                }`}
-              >
-                {g.label}
-                <span className={`font-mono-data ${group === g.id ? 'text-white/80' : 'text-muted-foreground'}`}>{counts[g.id]}</span>
-              </button>
-            ))}
-          </div>
-        </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-3 md:hidden">
-            <span className="text-xs text-muted-foreground">{filtered.length} клиентов</span>
-          </div>
+
+        <div className="flex-1 min-w-0 w-full">
           <div className="hidden md:flex items-center justify-between mb-3">
             <span className="text-sm font-medium">
               {{all:'Все клиенты',new:'Новые',debt:'Долг по балансу',active:'С активными заказами',deleted:'Удалённые'}[group]}
