@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { Client, ClientOrder, OrderItem, BalanceEntry, Part } from '@/data/mockData';
-import { getOrders, createOrder, updateOrder, getBalanceHistory, changeBalance, getParts, updateClient } from '@/api';
+import { getOrders, createOrder, updateOrder, getBalanceHistory, changeBalance, getParts, updateClient, getClient } from '@/api';
 
 interface Props {
   client: Client;
@@ -71,6 +71,22 @@ export default function ClientCard({ client, onBack }: Props) {
 
   useEffect(() => {
     Promise.all([
+      getClient(client.id).then((data: unknown) => {
+        const d = data as Record<string, unknown>;
+        const fresh: Client = {
+          ...client,
+          vins: (d.vins as string[]) || [],
+          balance: Number(d.balance),
+          totalOrders: Number(d.totalOrders),
+          totalSpent: Number(d.totalSpent),
+          phone: (d.phone as string) || client.phone,
+          email: (d.email as string) || client.email,
+          city: (d.city as string) || client.city,
+          note: (d.note as string) || client.note,
+        };
+        setLocalClient(fresh);
+        setEditVins(fresh.vins && fresh.vins.length > 0 ? fresh.vins : ['']);
+      }),
       getOrders(client.id).then((data: ClientOrder[]) => setOrders(data)),
       getBalanceHistory(client.id).then((data: BalanceEntry[]) => setBalanceHistory(data)),
       getParts().then((data: unknown[]) => setParts(data.map((r: unknown) => {

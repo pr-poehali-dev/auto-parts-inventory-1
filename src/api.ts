@@ -23,6 +23,7 @@ export const importParts = (parts: unknown[]) => req(`${PARTS_URL}/import`, 'POS
 
 // ── CLIENTS ────────────────────────────────────────────
 export const getClients = () => req(CLIENTS_URL);
+export const getClient = (id: string) => req(`${CLIENTS_URL}/${id}`);
 export const createClient = (data: unknown) => req(CLIENTS_URL, 'POST', data);
 export const updateClient = (id: string, data: unknown) => req(`${CLIENTS_URL}/${id}`, 'PUT', data);
 
