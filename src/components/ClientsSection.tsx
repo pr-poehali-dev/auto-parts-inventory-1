@@ -94,7 +94,8 @@ export default function ClientsSection() {
       const phoneDigits = c.phone.replace(/\D/g, '');
       const qDigits = q.replace(/\D/g, '');
       const phoneMatch = c.phone.includes(q) || (qDigits.length >= 4 && phoneDigits.slice(-4).endsWith(qDigits));
-      return !q || name?.includes(q) || phoneMatch || c.email?.toLowerCase().includes(q);
+      const vinMatch = (c.vins || []).some((v) => v.toLowerCase().includes(q.replace(/\s/g, '')));
+      return !q || name?.includes(q) || phoneMatch || c.email?.toLowerCase().includes(q) || vinMatch;
     })
     .sort((a, b) => {
       let cmp = 0;
@@ -175,7 +176,7 @@ export default function ClientsSection() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Поиск по имени, телефону или email..."
+            placeholder="Поиск по имени, телефону, email или VIN..."
             className="w-full pl-9 pr-4 py-2 border border-border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
