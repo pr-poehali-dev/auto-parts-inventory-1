@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Icon from '@/components/ui/icon';
-import { mockClients, Client } from '@/data/mockData';
+import { mockClients, mockClientOrders, Client } from '@/data/mockData';
 import ClientCard from '@/components/ClientCard';
 
 export default function ClientsSection() {
@@ -57,6 +57,16 @@ export default function ClientsSection() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
 
+  const getClientPaymentStatus = (clientId: string) => {
+    const orders = mockClientOrders.filter((o) => o.clientId === clientId && o.status !== 'cancelled');
+    if (!orders.length) return null;
+    const hasUnpaid = orders.some((o) => o.prepaid < o.total);
+    const allPaid = orders.every((o) => o.prepaid >= o.total);
+    if (allPaid) return 'paid';
+    if (hasUnpaid) return 'debt';
+    return null;
+  };
+
   const handleAdd = () => {
     if (!form.firstName || !form.phone) return;
     const client: Client = {
@@ -74,6 +84,7 @@ export default function ClientsSection() {
       createdAt: new Date().toISOString().slice(0, 10),
       totalOrders: 0,
       totalSpent: 0,
+      balance: 0,
     };
     setClients((prev) => [client, ...prev]);
     setShowAdd(false);
@@ -170,7 +181,15 @@ export default function ClientsSection() {
                   <div className="text-xs text-muted-foreground truncate">{client.email}</div>
                 )}
               </div>
-              <Icon name="ChevronRight" size={14} className="text-muted-foreground group-hover:text-foreground transition-colors mt-1 shrink-0" />
+              <div className="flex flex-col items-end gap-1 shrink-0 ml-1">
+                {(() => {
+                  const ps = getClientPaymentStatus(client.id);
+                  if (ps === 'paid') return <Icon name="CheckCircle2" size={16} className="text-emerald-500" title="Все заказы оплачены" />;
+                  if (ps === 'debt') return <Icon name="AlertTriangle" size={16} className="text-red-500" title="Требуется оплата" />;
+                  return null;
+                })()}
+                <Icon name="ChevronRight" size={14} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+              </div>
             </div>
 
             <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 gap-2">
@@ -184,12 +203,20 @@ export default function ClientsSection() {
               </div>
             </div>
 
-            {client.city && (
-              <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                <Icon name="MapPin" size={11} />
-                {client.city}
-              </div>
-            )}
+            <div className="mt-2 flex items-center justify-between">
+              {client.city ? (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Icon name="MapPin" size={11} />
+                  {client.city}
+                </div>
+              ) : <span />}
+              {client.balance !== 0 && (
+                <div className={`flex items-center gap-1 text-xs font-mono-data font-medium ${client.balance > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                  <Icon name="Wallet" size={11} />
+                  {client.balance > 0 ? '+' : ''}{client.balance.toLocaleString()} ₽
+                </div>
+              )}
+            </div>
           </div>
         ))}
 

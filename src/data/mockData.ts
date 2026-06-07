@@ -227,6 +227,7 @@ export interface Client {
   createdAt: string;
   totalOrders: number;
   totalSpent: number;
+  balance: number;
 }
 
 export interface OrderItem {
@@ -244,6 +245,7 @@ export interface ClientOrder {
   status: 'new' | 'in_progress' | 'done' | 'cancelled';
   items: OrderItem[];
   total: number;
+  prepaid: number;
   note?: string;
 }
 
@@ -261,6 +263,7 @@ export const mockClients: Client[] = [
     createdAt: '2026-03-15',
     totalOrders: 5,
     totalSpent: 18750,
+    balance: 0,
   },
   {
     id: 'c2',
@@ -274,6 +277,7 @@ export const mockClients: Client[] = [
     createdAt: '2026-01-10',
     totalOrders: 12,
     totalSpent: 87400,
+    balance: 5000,
   },
   {
     id: 'c3',
@@ -285,6 +289,7 @@ export const mockClients: Client[] = [
     createdAt: '2026-05-01',
     totalOrders: 2,
     totalSpent: 4200,
+    balance: 0,
   },
   {
     id: 'c4',
@@ -297,6 +302,7 @@ export const mockClients: Client[] = [
     createdAt: '2026-02-20',
     totalOrders: 8,
     totalSpent: 52100,
+    balance: -3600,
   },
   {
     id: 'c5',
@@ -310,6 +316,7 @@ export const mockClients: Client[] = [
     createdAt: '2026-04-18',
     totalOrders: 3,
     totalSpent: 9600,
+    balance: 0,
   },
 ];
 
@@ -320,14 +327,14 @@ export const mockClientOrders: ClientOrder[] = [
       { article: 'OP-641/1', name: 'Фильтр масляный', brand: 'Mann', quantity: 2, price: 380 },
       { article: 'NGK-BKR6E', name: 'Свеча зажигания', brand: 'NGK', quantity: 4, price: 220 },
     ],
-    total: 1640, note: 'Замена масла',
+    total: 1640, prepaid: 1640, note: 'Замена масла',
   },
   {
     id: 'o2', clientId: 'c1', date: '2026-05-20', status: 'done',
     items: [
       { article: 'C2674', name: 'Фильтр воздушный', brand: 'Mann', quantity: 1, price: 520 },
     ],
-    total: 520,
+    total: 520, prepaid: 300,
   },
   {
     id: 'o3', clientId: 'c2', date: '2026-06-07', status: 'in_progress',
@@ -335,14 +342,14 @@ export const mockClientOrders: ClientOrder[] = [
       { article: 'TRW-BF-L04', name: 'Колодки тормозные', brand: 'TRW', quantity: 4, price: 1850 },
       { article: 'FDB1640', name: 'Колодки тормозные', brand: 'Ferodo', quantity: 2, price: 1980 },
     ],
-    total: 11360, note: 'Оптовый заказ',
+    total: 11360, prepaid: 0, note: 'Оптовый заказ',
   },
   {
     id: 'o4', clientId: 'c2', date: '2026-06-01', status: 'done',
     items: [
       { article: 'SKF-VKBA3450', name: 'Ступичный подшипник', brand: 'SKF', quantity: 2, price: 4200 },
     ],
-    total: 8400,
+    total: 8400, prepaid: 8400,
   },
   {
     id: 'o5', clientId: 'c4', date: '2026-06-06', status: 'new',
@@ -350,14 +357,14 @@ export const mockClientOrders: ClientOrder[] = [
       { article: 'BOSCH-0451103258', name: 'Фильтр топливный', brand: 'Bosch', quantity: 3, price: 680 },
       { article: 'C2674', name: 'Фильтр воздушный', brand: 'Mann', quantity: 3, price: 520 },
     ],
-    total: 3600,
+    total: 3600, prepaid: 0,
   },
   {
     id: 'o6', clientId: 'c5', date: '2026-05-25', status: 'done',
     items: [
       { article: 'FAG713617010B', name: 'Ступичный подшипник', brand: 'FAG', quantity: 1, price: 3900 },
     ],
-    total: 3900,
+    total: 3900, prepaid: 3900,
   },
 ];
 
