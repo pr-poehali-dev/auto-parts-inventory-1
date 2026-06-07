@@ -6,8 +6,10 @@ import AnalyticsSection from '@/components/AnalyticsSection';
 import ImportSection from '@/components/ImportSection';
 import ClientsSection from '@/components/ClientsSection';
 import PartDetailModal from '@/components/PartDetailModal';
+import AuthScreen from '@/components/AuthScreen';
 import { Part } from '@/data/mockData';
 import { getParts } from '@/api';
+import { useAuth } from '@/context/AuthContext';
 
 type Tab = 'search' | 'stock' | 'clients' | 'analytics' | 'import';
 
@@ -28,18 +30,33 @@ const PAGE_TITLES: Record<Tab, { title: string; subtitle: string }> = {
 };
 
 export default function Index() {
+  const { user, loading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('search');
   const [selectedPart, setSelectedPart] = useState<Part | null>(null);
   const [lowStockCount, setLowStockCount] = useState(0);
   const [stockKey, setStockKey] = useState(0);
 
   useEffect(() => {
+    if (!user) return;
     getParts().then((data: unknown[]) => {
       const count = (data as Array<{ quantity: number; min_quantity: number }>)
         .filter((p) => p.quantity === 0 || p.quantity <= p.min_quantity).length;
       setLowStockCount(count);
     });
-  }, []);
+  }, [user]);
+
+  // Пока проверяем токен — пустой экран
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-muted/40 flex items-center justify-center">
+        <Icon name="Loader" size={24} className="animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Не авторизован — показываем форму входа
+  if (!user) return <AuthScreen />;
+
   const { title, subtitle } = PAGE_TITLES[activeTab];
 
   return (
@@ -82,6 +99,18 @@ export default function Index() {
                     <span className="hidden sm:block">{tab.label}</span>
                   </button>
                 ))}
+              </div>
+
+              {/* Пользователь + выход */}
+              <div className="flex items-center gap-1.5 shrink-0 pl-1 border-l border-border ml-1">
+                <span className="text-xs text-muted-foreground hidden sm:block max-w-[120px] truncate">{user.email}</span>
+                <button
+                  onClick={logout}
+                  title="Выйти"
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <Icon name="LogOut" size={14} />
+                </button>
               </div>
             </div>
           </div>

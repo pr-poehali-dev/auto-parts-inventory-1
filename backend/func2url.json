@@ -1,4 +1,5 @@
 {
+  "auth": "https://functions.poehali.dev/f2b4fce3-8117-439b-b1bd-16488d6d472d",
   "decode-vin": "https://functions.poehali.dev/66c2f2c2-e4f1-436d-a651-cb76fb2dc661",
   "clients": "https://functions.poehali.dev/8d3b57eb-8ec9-497c-b55a-f9b7e8f1b6a0",
   "orders": "https://functions.poehali.dev/208bfaae-610b-45d3-ad66-6b191bdf2c72",

@@ -4,6 +4,7 @@ const PARTS_URL = func2url.parts;
 const CLIENTS_URL = func2url.clients;
 const ORDERS_URL = func2url.orders;
 const DECODE_VIN_URL = (func2url as Record<string, string>)['decode-vin'];
+const AUTH_URL = func2url.auth;
 
 async function req(url: string, method = 'GET', body?: unknown) {
   const res = await fetch(url, {
@@ -41,3 +42,27 @@ export const changeBalance = (data: unknown) => req(`${ORDERS_URL}?action=balanc
 
 // ── VIN DECODE ─────────────────────────────────────────
 export const decodeVin = (vin: string) => req(`${DECODE_VIN_URL}?vin=${encodeURIComponent(vin)}`);
+
+// ── AUTH ───────────────────────────────────────────────
+function authReq(url: string, method = 'GET', body?: unknown, token?: string) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['X-Session-Token'] = token;
+  return fetch(url, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined })
+    .then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка');
+      return data;
+    });
+}
+export const authRegister = (data: { email: string; phone: string; password: string }) =>
+  authReq(`${AUTH_URL}?action=register`, 'POST', data);
+export const authLogin = (data: { email: string; password: string }) =>
+  authReq(`${AUTH_URL}?action=login`, 'POST', data);
+export const authMe = (token: string) =>
+  authReq(`${AUTH_URL}?action=me`, 'GET', undefined, token);
+export const authForgot = (email: string) =>
+  authReq(`${AUTH_URL}?action=forgot`, 'POST', { email });
+export const authReset = (token: string, password: string) =>
+  authReq(`${AUTH_URL}?action=reset`, 'POST', { token, password });
+export const authLogout = (token: string) =>
+  authReq(`${AUTH_URL}?action=logout`, 'POST', undefined, token);
