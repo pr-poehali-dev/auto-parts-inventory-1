@@ -31,6 +31,7 @@ export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>('search');
   const [selectedPart, setSelectedPart] = useState<Part | null>(null);
   const [lowStockCount, setLowStockCount] = useState(0);
+  const [stockKey, setStockKey] = useState(0);
 
   useEffect(() => {
     getParts().then((data: unknown[]) => {
@@ -94,14 +95,19 @@ export default function Index() {
         </div>
 
         {activeTab === 'search' && <SearchSection onSelectPart={setSelectedPart} />}
-        {activeTab === 'stock' && <StockSection onSelectPart={setSelectedPart} />}
+        {activeTab === 'stock' && <StockSection key={stockKey} onSelectPart={setSelectedPart} />}
         {activeTab === 'clients' && <ClientsSection />}
         {activeTab === 'analytics' && <AnalyticsSection />}
         {activeTab === 'import' && <ImportSection />}
       </main>
 
       {selectedPart && (
-        <PartDetailModal part={selectedPart} onClose={() => setSelectedPart(null)} />
+        <PartDetailModal
+          part={selectedPart}
+          onClose={() => setSelectedPart(null)}
+          onUpdated={(updated) => { setSelectedPart(updated); setStockKey((k) => k + 1); }}
+          onDeleted={() => { setSelectedPart(null); setStockKey((k) => k + 1); }}
+        />
       )}
     </div>
   );
