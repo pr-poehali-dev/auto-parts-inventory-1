@@ -39,10 +39,12 @@ export default function Index() {
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex items-center justify-between h-14 gap-3">
             <div className="flex items-center gap-2.5 shrink-0">
-              <div className="w-7 h-7 bg-foreground rounded-md flex items-center justify-center">
-                <Icon name="Wrench" size={14} className="text-background" />
-              </div>
-              <span className="font-semibold text-sm tracking-tight">АвтоСклад</span>
+              <img
+                src="https://cdn.poehali.dev/projects/2b463ec9-69d1-4be9-bdc9-a61939b858a4/files/78c0d8d9-2acb-4edb-ae0c-ac26cbb3db2a.jpg"
+                alt="PartKeeper"
+                className="w-7 h-7 rounded-md object-cover"
+              />
+              <span className="font-semibold text-sm tracking-tight">PartKeeper<span className="text-muted-foreground font-normal">.pro</span></span>
               <span className="text-xs text-muted-foreground hidden md:block">Учёт запчастей</span>
             </div>
 
