@@ -8,6 +8,8 @@ export default function ClientsSection() {
   const [selected, setSelected] = useState<Client | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'date' | 'orders' | 'spent'>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [form, setForm] = useState<Partial<Client>>({
     type: 'individual',
     firstName: '',
@@ -22,13 +24,34 @@ export default function ClientsSection() {
   });
   const [addTab, setAddTab] = useState<'register' | 'invite'>('register');
 
-  const filtered = clients.filter((c) => {
-    const q = search.toLowerCase();
-    const name = c.type === 'company'
-      ? c.companyName?.toLowerCase()
-      : `${c.lastName} ${c.firstName} ${c.middleName}`.toLowerCase();
-    return !q || name?.includes(q) || c.phone.includes(q) || c.email?.toLowerCase().includes(q);
-  });
+  const toggleSort = (field: typeof sortBy) => {
+    if (sortBy === field) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortBy(field); setSortDir('asc'); }
+  };
+
+  const filtered = clients
+    .filter((c) => {
+      const q = search.toLowerCase();
+      const name = c.type === 'company'
+        ? c.companyName?.toLowerCase()
+        : `${c.lastName} ${c.firstName} ${c.middleName}`.toLowerCase();
+      return !q || name?.includes(q) || c.phone.includes(q) || c.email?.toLowerCase().includes(q);
+    })
+    .sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === 'name') {
+        const na = (a.type === 'company' ? a.companyName : `${a.lastName} ${a.firstName}`) || '';
+        const nb = (b.type === 'company' ? b.companyName : `${b.lastName} ${b.firstName}`) || '';
+        cmp = na.localeCompare(nb, 'ru');
+      } else if (sortBy === 'date') {
+        cmp = a.createdAt.localeCompare(b.createdAt);
+      } else if (sortBy === 'orders') {
+        cmp = a.totalOrders - b.totalOrders;
+      } else if (sortBy === 'spent') {
+        cmp = a.totalSpent - b.totalSpent;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
 
   const handleAdd = () => {
     if (!form.firstName || !form.phone) return;
@@ -87,6 +110,33 @@ export default function ClientsSection() {
           <Icon name="UserPlus" size={15} />
           Добавить клиента
         </button>
+      </div>
+
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-xs text-muted-foreground mr-1">Сортировка:</span>
+        {([
+          { id: 'name', label: 'По алфавиту', icon: 'ArrowUpAZ' },
+          { id: 'date', label: 'По дате', icon: 'Calendar' },
+          { id: 'orders', label: 'По заказам', icon: 'ShoppingCart' },
+          { id: 'spent', label: 'По сумме', icon: 'TrendingUp' },
+        ] as const).map((opt) => (
+          <button
+            key={opt.id}
+            onClick={() => toggleSort(opt.id)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${
+              sortBy === opt.id
+                ? 'bg-foreground text-background border-foreground'
+                : 'bg-white text-muted-foreground border-border hover:text-foreground'
+            }`}
+          >
+            <Icon name={opt.icon as 'Calendar'} size={12} />
+            {opt.label}
+            {sortBy === opt.id && (
+              <Icon name={sortDir === 'asc' ? 'ArrowUp' : 'ArrowDown'} size={11} />
+            )}
+          </button>
+        ))}
+        <span className="text-xs text-muted-foreground ml-auto">{filtered.length} клиентов</span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
