@@ -343,27 +343,35 @@ export default function ClientsSection() {
                       </div>
                     </div>
 
-                    {!client.isDeleted && (
-                      <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-border">
-                        <div>
-                          <div className="text-xs text-muted-foreground">Заказов</div>
-                          <div className="text-sm font-semibold font-mono-data">{client.totalOrders}</div>
+                    {!client.isDeleted && (() => {
+                      const clientOrders = orders.filter((o) => o.clientId === client.id && !['cancelled', 'issued'].includes(o.status));
+                      const inWork = clientOrders.reduce((sum, o) => sum + o.total, 0);
+                      const diff = client.balance - inWork;
+                      return (
+                        <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-border">
+                          <div>
+                            <div className="text-xs text-muted-foreground">Баланс</div>
+                            <div className={`text-sm font-semibold font-mono-data ${client.balance > 0 ? 'text-emerald-600' : client.balance < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                              {client.balance >= 0 ? '+' : ''}{client.balance.toLocaleString()} ₽
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-muted-foreground">В работе</div>
+                            <div className="text-sm font-semibold font-mono-data text-amber-600">{inWork.toLocaleString()} ₽</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-muted-foreground">Задолжен</div>
+                            <div className={`text-sm font-semibold font-mono-data ${diff > 0 ? 'text-emerald-600' : diff < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                              {diff > 0 ? '+' : ''}{diff.toLocaleString()} ₽
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-xs text-muted-foreground">Сумма</div>
-                          <div className="text-sm font-semibold font-mono-data">{client.totalSpent.toLocaleString()} ₽</div>
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                     {client.city && (
                       <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
                         <Icon name="MapPin" size={11} />
                         {client.city}
-                        {client.balance !== 0 && (
-                          <span className={`ml-auto font-mono-data font-medium ${client.balance > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                            {client.balance > 0 ? '+' : ''}{client.balance.toLocaleString()} ₽
-                          </span>
-                        )}
                       </div>
                     )}
                     {client.vins && client.vins.length > 0 && !client.isDeleted && (
