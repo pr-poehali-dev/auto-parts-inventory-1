@@ -39,6 +39,7 @@ export default function OrdersSection() {
   const [search, setSearch] = useState('');
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [selectedItems, setSelectedItems] = useState<Record<string, Set<number>>>({});
 
   useEffect(() => {
     setLoading(true);
@@ -60,11 +61,29 @@ export default function OrdersSection() {
     }
   };
 
-  const handleItemStatusChange = async (orderId: string, itemIdx: number, newItemStatus: 'pending' | 'in_stock' | 'issued') => {
+  const toggleItem = (orderId: string, idx: number) => {
+    setSelectedItems((prev) => {
+      const set = new Set(prev[orderId] ?? []);
+      if (set.has(idx)) { set.delete(idx); } else { set.add(idx); }
+      return { ...prev, [orderId]: set };
+    });
+  };
+
+  const toggleAllItems = (orderId: string, total: number) => {
+    setSelectedItems((prev) => {
+      const set = prev[orderId] ?? new Set();
+      const allSelected = set.size === total;
+      return { ...prev, [orderId]: allSelected ? new Set() : new Set(Array.from({ length: total }, (_, i) => i)) };
+    });
+  };
+
+  const applyItemStatus = async (orderId: string, newItemStatus: 'pending' | 'in_stock' | 'issued') => {
     const order = orders.find((o) => o.id === orderId);
     if (!order) return;
-    const newItems = order.items.map((item, i) => i === itemIdx ? { ...item, status: newItemStatus } : item);
+    const sel = selectedItems[orderId] ?? new Set();
+    const newItems = order.items.map((item, i) => sel.has(i) ? { ...item, status: newItemStatus } : item);
     setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, items: newItems } : o));
+    setSelectedItems((prev) => ({ ...prev, [orderId]: new Set() }));
     await updateOrder(orderId, { items: newItems });
   };
 
@@ -254,60 +273,95 @@ export default function OrdersSection() {
 
 
                 {/* Раскрытая детализация */}
-                {isExpanded && (
+                {isExpanded && (() => {
+                  const sel = selectedItems[order.id] ?? new Set<number>();
+                  const allSelected = order.items.length > 0 && sel.size === order.items.length;
+                  return (
                   <div className="px-4 pb-4 bg-muted/20 border-t border-border">
                     <div className="pt-3 space-y-3">
                       {/* Позиции */}
-                      <div className="space-y-2">
+                      <div className="rounded-lg border border-border overflow-hidden bg-background">
+                        {/* Шапка с выбором всех */}
+                        <div className="flex items-center gap-3 px-3 py-2 border-b border-border bg-muted/30">
+                          <input
+                            type="checkbox"
+                            checked={allSelected}
+                            onChange={() => toggleAllItems(order.id, order.items.length)}
+                            className="w-4 h-4 rounded accent-primary cursor-pointer"
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            {sel.size > 0 ? `Выбрано: ${sel.size}` : 'Выбрать все'}
+                          </span>
+                        </div>
+
                         {order.items.map((item, i) => {
                           const itemSt = item.status ?? 'pending';
+                          const checked = sel.has(i);
+                          const ITEM_ST: Record<string, { label: string; cls: string }> = {
+                            pending:  { label: 'Ожидается', cls: 'text-yellow-700 bg-yellow-50 border-yellow-200' },
+                            in_stock: { label: 'На складе',  cls: 'text-purple-700 bg-purple-50 border-purple-200' },
+                            issued:   { label: 'Выдано',     cls: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+                          };
+                          const stInfo = ITEM_ST[itemSt] ?? ITEM_ST.pending;
                           return (
-                          <div key={i} className="text-sm">
-                            <div className="flex items-start justify-between gap-3">
+                            <div
+                              key={i}
+                              onClick={() => toggleItem(order.id, i)}
+                              className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors text-sm ${i > 0 ? 'border-t border-border' : ''} ${checked ? 'bg-primary/5' : 'hover:bg-muted/20'}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => {}}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-4 h-4 rounded accent-primary cursor-pointer shrink-0"
+                              />
                               <div className="flex-1 min-w-0">
                                 <span className="font-medium truncate block">{item.name || item.article}</span>
                                 <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
                                   {item.article && <span>{item.article}</span>}
                                   {item.brand && <span>{item.brand}</span>}
-                                  {item.expectedDate && (
-                                    <span className="text-amber-600">
-                                      ожидается {fmtDate(item.expectedDate)}
-                                    </span>
-                                  )}
                                 </div>
                               </div>
-                              <div className="text-right shrink-0">
-                                <div>{item.quantity} шт × {item.price.toLocaleString('ru')} ₽</div>
-                                <div className="text-xs text-muted-foreground">
-                                  {(item.quantity * item.price).toLocaleString('ru')} ₽
+                              <div className="flex items-center gap-3 shrink-0">
+                                <span className={`hidden sm:inline-flex px-2 py-0.5 rounded-full text-xs border ${stInfo.cls}`}>
+                                  {stInfo.label}
+                                </span>
+                                <div className="text-right text-xs">
+                                  <div>{item.quantity} шт</div>
+                                  <div className="text-muted-foreground">{(item.quantity * item.price).toLocaleString('ru')} ₽</div>
                                 </div>
                               </div>
                             </div>
-                            {/* Кнопки статуса позиции */}
-                            <div className="flex gap-1.5 mt-1.5">
-                              <button
-                                onClick={() => handleItemStatusChange(order.id, i, 'pending')}
-                                className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${itemSt === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-300 font-medium' : 'bg-background text-muted-foreground border-border hover:border-yellow-300'}`}
-                              >
-                                Ожидается
-                              </button>
-                              <button
-                                onClick={() => handleItemStatusChange(order.id, i, 'in_stock')}
-                                className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${itemSt === 'in_stock' ? 'bg-purple-50 text-purple-700 border-purple-300 font-medium' : 'bg-background text-muted-foreground border-border hover:border-purple-300'}`}
-                              >
-                                На складе
-                              </button>
-                              <button
-                                onClick={() => handleItemStatusChange(order.id, i, 'issued')}
-                                className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${itemSt === 'issued' ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-medium' : 'bg-background text-muted-foreground border-border hover:border-emerald-300'}`}
-                              >
-                                Выдано
-                              </button>
-                            </div>
-                          </div>
                           );
                         })}
                       </div>
+
+                      {/* Панель действий при выборе */}
+                      {sel.size > 0 && (
+                        <div className="flex items-center gap-2 p-2.5 bg-primary/5 border border-primary/20 rounded-lg">
+                          <span className="text-xs text-muted-foreground mr-1">Отметить как:</span>
+                          <button
+                            onClick={() => applyItemStatus(order.id, 'pending')}
+                            className="px-3 py-1 rounded-md text-xs border border-yellow-300 text-yellow-700 bg-yellow-50 hover:bg-yellow-100 transition-colors font-medium"
+                          >
+                            Ожидается
+                          </button>
+                          <button
+                            onClick={() => applyItemStatus(order.id, 'in_stock')}
+                            className="px-3 py-1 rounded-md text-xs border border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 transition-colors font-medium"
+                          >
+                            На складе
+                          </button>
+                          <button
+                            onClick={() => applyItemStatus(order.id, 'issued')}
+                            className="px-3 py-1 rounded-md text-xs border border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors font-medium"
+                          >
+                            Выдано
+                          </button>
+                        </div>
+                      )}
+                      
 
                       {order.note && (
                         <div className="text-xs text-muted-foreground bg-background rounded-md px-3 py-2 border border-border">
@@ -347,7 +401,8 @@ export default function OrdersSection() {
                       </div>
                     </div>
                   </div>
-                )}
+                  );
+                })()}
               </div>
             );
           })}
