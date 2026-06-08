@@ -271,8 +271,23 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
                     onChange={(e) => {
                       const val = e.target.value;
                       setNewPart((p) => ({ ...p, barcode: val }));
-                      const found = parts.find((p) => p.barcode === val.trim());
+                      const found = parts.find((p) => (p.barcode || '').trim().toLowerCase() === val.trim().toLowerCase());
                       setBarcodeExisting(found ?? null);
+                    }}
+                    onPaste={(e) => {
+                      const val = e.clipboardData.getData('text').trim();
+                      setTimeout(() => {
+                        setNewPart((p) => ({ ...p, barcode: val }));
+                        const found = parts.find((p) => (p.barcode || '').trim().toLowerCase() === val.toLowerCase());
+                        setBarcodeExisting(found ?? null);
+                      }, 50);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const val = (e.target as HTMLInputElement).value.trim();
+                        const found = parts.find((p) => (p.barcode || '').trim().toLowerCase() === val.toLowerCase());
+                        setBarcodeExisting(found ?? null);
+                      }
                     }}
                     placeholder="Наведи сканер и нажми кнопку"
                     className="flex-1 px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono-data placeholder:font-sans placeholder:text-muted-foreground"
