@@ -120,7 +120,7 @@ export default function Index() {
         {activeTab === 'clients' && <ClientsSection />}
         {activeTab === 'orders' && <OrdersSection />}
         {activeTab === 'stock' && <StockSection key={stockKey} onSelectPart={setSelectedPart} />}
-        {activeTab === 'analytics' && <AnalyticsSection />}
+        {activeTab === 'analytics' && <AnalyticsSection key={Date.now()} />}
       </main>
 
       {selectedPart && (

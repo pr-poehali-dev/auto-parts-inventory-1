@@ -70,7 +70,13 @@ export default function AnalyticsSection() {
   const stats = [
     { label: 'Позиций в каталоге', value: totalParts, icon: 'Package', color: 'text-foreground' },
     { label: 'Единиц на складе', value: totalItems.toLocaleString(), icon: 'Boxes', color: 'text-foreground' },
-    { label: 'Стоимость склада', value: totalValue.toLocaleString() + ' ₽', icon: 'TrendingUp', color: 'text-emerald-600' },
+    {
+      label: 'Стоимость склада',
+      value: totalValue.toLocaleString() + ' ₽',
+      sub: totalRevenue > 0 ? 'Выручка: ' + totalRevenue.toLocaleString('ru') + ' ₽' : null,
+      icon: 'TrendingUp',
+      color: 'text-emerald-600',
+    },
     { label: 'Нет в наличии', value: outOfStock, icon: 'PackageX', color: 'text-red-500' },
     { label: 'Мало на складе', value: lowStock, icon: 'AlertTriangle', color: 'text-amber-600' },
     { label: 'Поступлений (шт)', value: recentIn, icon: 'ArrowDownCircle', color: 'text-emerald-600' },
@@ -142,6 +148,9 @@ export default function AnalyticsSection() {
               <span className="text-xs text-muted-foreground">{s.label}</span>
             </div>
             <div className={`text-2xl font-bold font-mono-data ${s.color}`}>{s.value}</div>
+            {'sub' in s && s.sub && (
+              <div className="text-xs text-emerald-600 font-mono-data mt-1">{s.sub}</div>
+            )}
           </div>
         ))}
       </div>
