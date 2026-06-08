@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Icon from '@/components/ui/icon';
 import { Part, CATEGORIES } from '@/data/mockData';
-import { getParts, createPart, deletePart } from '@/api';
+import { getParts, createPart, deletePart, updatePart } from '@/api';
 
 interface StockSectionProps {
   onSelectPart: (part: Part) => void;
@@ -35,6 +35,8 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [barcodeExisting, setBarcodeExisting] = useState<Part | null>(null);
+  const [barcodeAttachSearch, setBarcodeAttachSearch] = useState('');
+  const [savingBarcode, setSavingBarcode] = useState(false);
   const [barcodeQuery, setBarcodeQuery] = useState('');
   const [barcodeFound, setBarcodeFound] = useState<Part | null | 'not_found'>(null);
   const [showBarcodeSearch, setShowBarcodeSearch] = useState(false);
@@ -70,6 +72,28 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
     if (!value.trim()) { setBarcodeFound(null); return; }
     const found = parts.find((p) => p.barcode === value.trim());
     setBarcodeFound(found ?? 'not_found');
+  };
+
+  const handleAttachBarcode = async (part: Part) => {
+    setSavingBarcode(true);
+    try {
+      const updated = await updatePart(part.id, {
+        article: part.article, name: part.name, brand: part.brand,
+        category: part.category, quantity: part.quantity, minQuantity: part.minQuantity,
+        price: part.price, costPrice: part.costPrice ?? 0,
+        location: part.location, analogs: part.analogs,
+        oemArticle: part.oemArticle, barcode: newPart.barcode.trim(),
+      });
+      const updatedPart = dbToPart(updated as Record<string, unknown>);
+      setParts((prev) => prev.map((p) => p.id === updatedPart.id ? updatedPart : p));
+      setShowAddModal(false);
+      setBarcodeExisting(null);
+      setBarcodeAttachSearch('');
+      setNewPart({ article: '', oemArticle: '', name: '', brand: '', category: CATEGORIES[0], quantity: 0, minQuantity: 3, price: 0, costPrice: 0, location: '', barcode: '' });
+      onSelectPart(updatedPart);
+    } finally {
+      setSavingBarcode(false);
+    }
   };
 
   const handleAddPart = async () => {
@@ -251,11 +275,11 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
       </div>
 
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => { setShowAddModal(false); setBarcodeExisting(null); }}>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => { setShowAddModal(false); setBarcodeExisting(null); setBarcodeAttachSearch(''); }}>
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 animate-slide-up" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-base font-semibold">Новая деталь</h3>
-              <button onClick={() => { setShowAddModal(false); setBarcodeExisting(null); }} className="text-muted-foreground hover:text-foreground">
+              <button onClick={() => { setShowAddModal(false); setBarcodeExisting(null); setBarcodeAttachSearch(''); }} className="text-muted-foreground hover:text-foreground">
                 <Icon name="X" size={18} />
               </button>
             </div>
@@ -271,21 +295,21 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
                     onChange={(e) => {
                       const val = e.target.value;
                       setNewPart((p) => ({ ...p, barcode: val }));
-                      const found = parts.find((p) => (p.barcode || '').trim().toLowerCase() === val.trim().toLowerCase());
-                      setBarcodeExisting(found ?? null);
-                    }}
-                    onPaste={(e) => {
-                      const val = e.clipboardData.getData('text').trim();
-                      setTimeout(() => {
-                        setNewPart((p) => ({ ...p, barcode: val }));
-                        const found = parts.find((p) => (p.barcode || '').trim().toLowerCase() === val.toLowerCase());
+                      // Сканер вводит всё разом — проверяем сразу при каждом изменении
+                      const norm = val.trim().toLowerCase();
+                      if (norm.length >= 4) {
+                        const found = parts.find((p) => (p.barcode || '').trim().toLowerCase() === norm);
                         setBarcodeExisting(found ?? null);
-                      }, 50);
+                      } else {
+                        setBarcodeExisting(null);
+                      }
                     }}
                     onKeyDown={(e) => {
+                      // Сканер нажимает Enter после ввода — финальная проверка
                       if (e.key === 'Enter') {
-                        const val = (e.target as HTMLInputElement).value.trim();
-                        const found = parts.find((p) => (p.barcode || '').trim().toLowerCase() === val.toLowerCase());
+                        e.preventDefault();
+                        const val = (e.target as HTMLInputElement).value.trim().toLowerCase();
+                        const found = parts.find((p) => (p.barcode || '').trim().toLowerCase() === val);
                         setBarcodeExisting(found ?? null);
                       }
                     }}
@@ -302,21 +326,62 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
                     <span className="hidden sm:inline">Сканер</span>
                   </button>
                 </div>
-                {/* Найдена существующая деталь */}
+                {/* Найдена существующая деталь по штрихкоду */}
                 {barcodeExisting && (
-                  <div className="mt-2 flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <div className="mt-2 flex items-center justify-between gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
                     <div>
-                      <div className="text-xs text-amber-700 font-medium">Деталь уже есть на складе</div>
-                      <div className="text-sm font-semibold text-amber-900">{barcodeExisting.name}</div>
-                      <div className="text-xs text-amber-600 font-mono-data">{barcodeExisting.article} · {barcodeExisting.quantity} шт</div>
+                      <div className="text-xs text-emerald-700 font-medium">Деталь найдена на складе</div>
+                      <div className="text-sm font-semibold text-emerald-900">{barcodeExisting.name}</div>
+                      <div className="text-xs text-emerald-600 font-mono-data">{barcodeExisting.article} · {barcodeExisting.quantity} шт</div>
                     </div>
                     <button
                       type="button"
                       onClick={() => { onSelectPart(barcodeExisting); setShowAddModal(false); setBarcodeExisting(null); }}
-                      className="shrink-0 text-xs px-3 py-1.5 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors"
+                      className="shrink-0 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
                     >
                       Открыть
                     </button>
+                  </div>
+                )}
+                {/* Штрихкод новый — предлагаем привязать к существующей детали */}
+                {newPart.barcode.trim().length >= 4 && !barcodeExisting && (
+                  <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="text-xs text-blue-700 font-medium mb-2">Штрихкод новый — привязать к существующей детали?</div>
+                    <input
+                      type="text"
+                      value={barcodeAttachSearch}
+                      onChange={(e) => setBarcodeAttachSearch(e.target.value)}
+                      placeholder="Найти деталь по артикулу или названию..."
+                      className="w-full px-2.5 py-1.5 border border-blue-200 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    />
+                    {barcodeAttachSearch.trim().length >= 2 && (() => {
+                      const q = barcodeAttachSearch.trim().toLowerCase();
+                      const matches = parts.filter((p) =>
+                        p.article.toLowerCase().includes(q) || p.name.toLowerCase().includes(q)
+                      ).slice(0, 4);
+                      return matches.length > 0 ? (
+                        <div className="mt-1.5 space-y-1">
+                          {matches.map((p) => (
+                            <div key={p.id} className="flex items-center justify-between bg-white border border-blue-100 rounded-md px-2.5 py-1.5">
+                              <div>
+                                <span className="text-sm font-medium">{p.name}</span>
+                                <span className="text-xs text-muted-foreground font-mono-data ml-2">{p.article}</span>
+                              </div>
+                              <button
+                                type="button"
+                                disabled={savingBarcode}
+                                onClick={() => handleAttachBarcode(p)}
+                                className="text-xs px-2.5 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+                              >
+                                Привязать
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="mt-1.5 text-xs text-blue-500">Ничего не найдено — добавляй как новую деталь</div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
@@ -395,7 +460,7 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
               </div>
             </div>
             <div className="flex gap-3 mt-5">
-              <button onClick={() => setShowAddModal(false)}
+              <button onClick={() => { setShowAddModal(false); setBarcodeExisting(null); setBarcodeAttachSearch(''); }}
                 className="flex-1 px-4 py-2 border border-border rounded-md text-sm hover:bg-muted transition-colors">
                 Отмена
               </button>
