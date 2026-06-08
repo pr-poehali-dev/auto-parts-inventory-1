@@ -482,7 +482,6 @@ export default function ClientCard({ client, onBack }: Props) {
             const activeOrders = orders.filter((o) => !['cancelled', 'issued'].includes(o.status));
             const inWork = activeOrders.reduce((sum, o) => sum + o.total, 0);
             const deposited = balanceHistory.filter((e) => e.amount > 0).reduce((sum, e) => sum + e.amount, 0);
-            const diff = deposited - inWork;
             return (
               <div className="grid grid-cols-3 gap-2 mb-3">
                 <div className="bg-muted/40 rounded-lg px-3 py-2">
@@ -495,8 +494,8 @@ export default function ClientCard({ client, onBack }: Props) {
                 </div>
                 <div className="bg-muted/40 rounded-lg px-3 py-2">
                   <div className="text-xs text-muted-foreground mb-0.5">Задолженность</div>
-                  <div className={`font-mono-data font-semibold text-sm ${diff > 0 ? 'text-emerald-600' : diff < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
-                    {diff > 0 ? '+' : ''}{diff.toLocaleString()} ₽
+                  <div className={`font-mono-data font-semibold text-sm ${balance > 0 ? 'text-emerald-600' : balance < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                    {balance > 0 ? '+' : ''}{balance.toLocaleString()} ₽
                   </div>
                 </div>
               </div>

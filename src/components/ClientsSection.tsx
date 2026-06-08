@@ -346,7 +346,6 @@ export default function ClientsSection() {
                     {!client.isDeleted && (() => {
                       const clientOrders = orders.filter((o) => o.clientId === client.id && !['cancelled', 'issued'].includes(o.status));
                       const inWork = clientOrders.reduce((sum, o) => sum + o.total, 0);
-                      const diff = client.balance - inWork;
                       return (
                         <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-border">
                           <div>
@@ -361,8 +360,8 @@ export default function ClientsSection() {
                           </div>
                           <div>
                             <div className="text-xs text-muted-foreground">Задолжен</div>
-                            <div className={`text-sm font-semibold font-mono-data ${diff > 0 ? 'text-emerald-600' : diff < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
-                              {diff > 0 ? '+' : ''}{diff.toLocaleString()} ₽
+                            <div className={`text-sm font-semibold font-mono-data ${client.balance > 0 ? 'text-emerald-600' : client.balance < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                              {client.balance >= 0 ? '+' : ''}{client.balance.toLocaleString()} ₽
                             </div>
                           </div>
                         </div>
