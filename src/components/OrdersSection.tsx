@@ -263,49 +263,8 @@ export default function OrdersSection() {
                       {st.label}
                     </span>
                   </div>
-                  <div className="relative">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setMarginPopupId(marginPopupId === order.id ? null : order.id); }}
-                      className="text-sm font-semibold font-mono-data hover:text-blue-600 transition-colors underline decoration-dotted"
-                    >
-                      {order.total.toLocaleString('ru')} ₽
-                    </button>
-                    {marginPopupId === order.id && (() => {
-                      const costTotal = order.items.reduce((s, i) => s + (i.costPrice ?? 0) * i.quantity, 0);
-                      const profit = order.total - costTotal;
-                      const margin = order.total > 0 ? Math.round((profit / order.total) * 100) : 0;
-                      return (
-                        <div className="absolute left-0 top-full mt-1 w-64 bg-white border border-border rounded-xl shadow-xl z-50 p-3 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-medium text-muted-foreground">Маржа заказа</span>
-                            <button onClick={() => setMarginPopupId(null)} className="text-muted-foreground hover:text-foreground"><Icon name="X" size={12} /></button>
-                          </div>
-                          <div className="grid grid-cols-3 gap-1 text-xs text-muted-foreground mb-2 px-1">
-                            <span>Закупка</span><span className="text-center">Продажа</span><span className="text-right">Профит</span>
-                          </div>
-                          <div className="space-y-1 mb-2 max-h-40 overflow-y-auto">
-                            {order.items.map((item, i) => {
-                              const cost = (item.costPrice ?? 0) * item.quantity;
-                              const sale = item.price * item.quantity;
-                              const p = sale - cost;
-                              return (
-                                <div key={i} className="grid grid-cols-3 gap-1 text-xs px-1 py-0.5 rounded hover:bg-muted/40">
-                                  <span className="font-mono-data text-muted-foreground">{cost.toLocaleString()} ₽</span>
-                                  <span className="font-mono-data text-center">{sale.toLocaleString()} ₽</span>
-                                  <span className={`font-mono-data text-right font-medium ${p > 0 ? 'text-emerald-600' : 'text-red-500'}`}>{p > 0 ? '+' : ''}{p.toLocaleString()} ₽</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          <div className="border-t border-border pt-2 grid grid-cols-3 gap-1 text-xs px-1">
-                            <span className="font-mono-data font-medium">{costTotal.toLocaleString()} ₽</span>
-                            <span className="font-mono-data font-medium text-center">{order.total.toLocaleString()} ₽</span>
-                            <span className={`font-mono-data font-bold text-right ${profit > 0 ? 'text-emerald-600' : 'text-red-500'}`}>{profit > 0 ? '+' : ''}{profit.toLocaleString()} ₽</span>
-                          </div>
-                          <div className="mt-1.5 text-center text-xs text-muted-foreground">маржа <span className={`font-semibold ${margin >= 20 ? 'text-emerald-600' : margin >= 10 ? 'text-amber-600' : 'text-red-500'}`}>{margin}%</span></div>
-                        </div>
-                      );
-                    })()}
+                  <div>
+                    <div className="text-sm font-semibold font-mono-data">{order.total.toLocaleString('ru')} ₽</div>
                   </div>
                   <div className="flex items-center gap-1.5">
                     {isPaid ? (
@@ -330,51 +289,10 @@ export default function OrdersSection() {
                       {client?.phone && <div className="text-xs text-muted-foreground">{client.phone}</div>}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <div className="text-right relative">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setMarginPopupId(marginPopupId === order.id ? null : order.id); }}
-                          className="text-sm font-semibold font-mono-data hover:text-blue-600 transition-colors underline decoration-dotted"
-                        >
-                          {order.total.toLocaleString('ru')} ₽
-                        </button>
+                      <div className="text-right">
+                        <div className="text-sm font-semibold font-mono-data">{order.total.toLocaleString('ru')} ₽</div>
                         {isPaid && <div className="text-xs text-emerald-600">оплачен</div>}
                         {isPartial && <div className="text-xs text-amber-600">{order.prepaid.toLocaleString('ru')} ₽</div>}
-                        {marginPopupId === order.id && (() => {
-                          const costTotal = order.items.reduce((s, i) => s + (i.costPrice ?? 0) * i.quantity, 0);
-                          const profit = order.total - costTotal;
-                          const margin = order.total > 0 ? Math.round((profit / order.total) * 100) : 0;
-                          return (
-                            <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-border rounded-xl shadow-xl z-50 p-3 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-medium text-muted-foreground">Маржа заказа</span>
-                                <button onClick={() => setMarginPopupId(null)} className="text-muted-foreground hover:text-foreground"><Icon name="X" size={12} /></button>
-                              </div>
-                              <div className="grid grid-cols-3 gap-1 text-xs text-muted-foreground mb-2 px-1">
-                                <span>Закупка</span><span className="text-center">Продажа</span><span className="text-right">Профит</span>
-                              </div>
-                              <div className="space-y-1 mb-2 max-h-40 overflow-y-auto">
-                                {order.items.map((item, i) => {
-                                  const cost = (item.costPrice ?? 0) * item.quantity;
-                                  const sale = item.price * item.quantity;
-                                  const p = sale - cost;
-                                  return (
-                                    <div key={i} className="grid grid-cols-3 gap-1 text-xs px-1 py-0.5 rounded hover:bg-muted/40">
-                                      <span className="font-mono-data text-muted-foreground">{cost.toLocaleString()} ₽</span>
-                                      <span className="font-mono-data text-center">{sale.toLocaleString()} ₽</span>
-                                      <span className={`font-mono-data text-right font-medium ${p > 0 ? 'text-emerald-600' : 'text-red-500'}`}>{p > 0 ? '+' : ''}{p.toLocaleString()} ₽</span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                              <div className="border-t border-border pt-2 grid grid-cols-3 gap-1 text-xs px-1">
-                                <span className="font-mono-data font-medium">{costTotal.toLocaleString()} ₽</span>
-                                <span className="font-mono-data font-medium text-center">{order.total.toLocaleString()} ₽</span>
-                                <span className={`font-mono-data font-bold text-right ${profit > 0 ? 'text-emerald-600' : 'text-red-500'}`}>{profit > 0 ? '+' : ''}{profit.toLocaleString()} ₽</span>
-                              </div>
-                              <div className="mt-1.5 text-center text-xs text-muted-foreground">маржа <span className={`font-semibold ${margin >= 20 ? 'text-emerald-600' : margin >= 10 ? 'text-amber-600' : 'text-red-500'}`}>{margin}%</span></div>
-                            </div>
-                          );
-                        })()}
                       </div>
                       <Icon name={isExpanded ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground" />
                     </div>
