@@ -605,10 +605,20 @@ export default function ClientCard({ client, onBack }: Props) {
           </div>
         ) : (
           <div className="space-y-2">
-            {orders.map((order) => {
+            {(() => {
+              // Распределяем положительный баланс по заказам (от старых к новым)
+              let remainingBalance = balance > 0 ? balance : 0;
+              return orders.map((order) => ({ order, extra: 0 })).reverse().map(({ order }) => {
+                const uncovered = Math.max(0, order.total - order.prepaid);
+                const covered = Math.min(remainingBalance, uncovered);
+                remainingBalance -= covered;
+                return { order, covered };
+              }).reverse();
+            })().map(({ order, covered }) => {
               const st = STATUS_MAP[order.status];
-              const ps = paymentStatus(order);
-              const debt = order.total - order.prepaid;
+              const effectivePaid = order.prepaid + covered;
+              const ps = effectivePaid >= order.total ? 'paid' : effectivePaid > 0 ? 'partial' : 'unpaid';
+              const debt = order.total - effectivePaid;
               return (
                 <div key={order.id} className="bg-white border border-border rounded-lg p-4 animate-fade-in">
                   <div className="flex items-center justify-between mb-3">
