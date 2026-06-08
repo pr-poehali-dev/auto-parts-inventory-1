@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
-import { Part, Movement } from '@/data/mockData';
-import { getParts } from '@/api';
+import { Part, Movement, Order } from '@/data/mockData';
+import { getParts, getOrders } from '@/api';
 
 function dbToPart(r: Record<string, unknown>): Part {
   return {
@@ -22,12 +22,14 @@ function dbToPart(r: Record<string, unknown>): Part {
 
 export default function AnalyticsSection() {
   const [parts, setParts] = useState<Part[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getParts()
-      .then((data: unknown[]) => setParts(data.map(dbToPart)))
-      .finally(() => setLoading(false));
+    Promise.all([
+      getParts().then((data: unknown[]) => setParts(data.map(dbToPart))),
+      getOrders().then((data: Order[]) => setOrders(data)),
+    ]).finally(() => setLoading(false));
   }, []);
 
   const movements: Movement[] = [];
@@ -40,6 +42,18 @@ export default function AnalyticsSection() {
 
   const recentIn = movements.filter((m) => m.type === 'in').reduce((s, m) => s + m.quantity, 0);
   const recentOut = movements.filter((m) => m.type === 'out').reduce((s, m) => s + m.quantity, 0);
+
+  const totalRevenue = orders.reduce((s, o) => s + o.total, 0);
+  const totalMargin = orders.reduce((sum, o) => {
+    return sum + o.items.reduce((s, it) => {
+      if (!it.costPrice) return s;
+      return s + (it.price - it.costPrice) * it.quantity;
+    }, 0);
+  }, 0);
+  const ordersWithCost = orders.filter(o => o.items.some(it => it.costPrice));
+  const marginPercent = totalRevenue > 0 && ordersWithCost.length > 0
+    ? Math.round((totalMargin / totalRevenue) * 100)
+    : null;
 
   const categoryStats = parts.reduce((acc, p) => {
     if (!acc[p.category]) acc[p.category] = { count: 0, value: 0 };
@@ -76,6 +90,50 @@ export default function AnalyticsSection() {
 
   return (
     <div className="space-y-6">
+
+      {/* Финансы по заказам */}
+      {orders.length > 0 && (
+        <div className="bg-white border border-border rounded-xl p-5">
+          <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+            <Icon name="TrendingUp" size={15} className="text-emerald-500" />
+            Финансы по заказам
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Заказов всего</div>
+              <div className="text-2xl font-bold font-mono-data">{orders.length}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Выручка</div>
+              <div className="text-2xl font-bold font-mono-data text-foreground">{totalRevenue.toLocaleString('ru')} ₽</div>
+            </div>
+            {ordersWithCost.length > 0 && (
+              <>
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">Маржа</div>
+                  <div className={`text-2xl font-bold font-mono-data ${totalMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {totalMargin.toLocaleString('ru')} ₽
+                  </div>
+                </div>
+                {marginPercent !== null && (
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">Маржинальность</div>
+                    <div className={`text-2xl font-bold font-mono-data ${marginPercent >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {marginPercent}%
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          {ordersWithCost.length === 0 && (
+            <div className="mt-3 text-xs text-muted-foreground">
+              Укажите закупочную цену в позициях заказа, чтобы видеть маржу
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {stats.map((s) => (
           <div key={s.label} className="bg-white border border-border rounded-xl p-4">
@@ -137,7 +195,7 @@ export default function AnalyticsSection() {
         </div>
       )}
 
-      {parts.length === 0 && (
+      {parts.length === 0 && orders.length === 0 && (
         <div className="py-12 text-center text-sm text-muted-foreground">
           <Icon name="BarChart3" size={32} className="mx-auto mb-2 opacity-20" />
           Добавьте товары на склад, чтобы видеть аналитику
