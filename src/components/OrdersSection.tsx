@@ -18,7 +18,7 @@ const STATUS_MAP: Record<string, { label: string; cls: string; dot: string }> = 
   cancelled:   { label: 'Отменён',           cls: 'text-gray-500 bg-gray-100 border-gray-200',        dot: 'bg-gray-400' },
 };
 
-const ACTIVE_STATUSES = ['new', 'ordered', 'in_stock', 'issued'];
+const ACTIVE_STATUSES = ['new', 'ordered', 'in_stock'];
 const ALL_STATUSES = ['new', 'ordered', 'in_stock', 'issued', 'cancelled'];
 
 function fmtDate(iso: string) {
