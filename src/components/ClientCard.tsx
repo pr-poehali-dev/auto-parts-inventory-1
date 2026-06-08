@@ -873,7 +873,7 @@ export default function ClientCard({ client, onBack }: Props) {
                 className="flex-1 px-4 py-2 border border-border rounded-md text-sm hover:bg-muted transition-colors">
                 Отмена
               </button>
-              <button onClick={handleCreateOrder} disabled={savingOrder || !orderItems.some((i) => i.article && i.quantity > 0)}
+              <button onClick={handleCreateOrder} disabled={savingOrder || !orderItems.some((i) => (i.article || i.name) && i.quantity > 0)}
                 className="flex-1 px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:bg-foreground/80 disabled:opacity-50 transition-colors">
                 {savingOrder ? 'Сохранение...' : 'Создать заказ'}
               </button>
