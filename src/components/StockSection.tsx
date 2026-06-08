@@ -17,6 +17,7 @@ function dbToPart(r: Record<string, unknown>): Part {
     quantity: Number(r.quantity),
     minQuantity: Number(r.min_quantity),
     price: Number(r.price),
+    costPrice: r.cost_price ? Number(r.cost_price) : undefined,
     location: (r.location as string) || '',
     analogs: (r.analogs as string[]) || [],
     oemArticle: (r.oem_article as string) || undefined,
@@ -39,7 +40,7 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
   const articleInputRef = useRef<HTMLInputElement>(null);
   const scanSearchRef = useRef<HTMLInputElement>(null);
   const [newPart, setNewPart] = useState({
-    article: '', oemArticle: '', name: '', brand: '', category: CATEGORIES[0], quantity: 0, minQuantity: 3, price: 0, location: '', barcode: '',
+    article: '', oemArticle: '', name: '', brand: '', category: CATEGORIES[0], quantity: 0, minQuantity: 3, price: 0, costPrice: 0, location: '', barcode: '',
   });
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
@@ -77,7 +78,7 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
       const created = await createPart(newPart);
       setParts((prev) => [...prev, dbToPart(created)]);
       setShowAddModal(false);
-      setNewPart({ article: '', oemArticle: '', name: '', brand: '', category: CATEGORIES[0], quantity: 0, minQuantity: 3, price: 0, location: '', barcode: '' });
+      setNewPart({ article: '', oemArticle: '', name: '', brand: '', category: CATEGORIES[0], quantity: 0, minQuantity: 3, price: 0, costPrice: 0, location: '', barcode: '' });
     } finally {
       setSaving(false);
     }
@@ -328,7 +329,15 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Цена, ₽</label>
+                  <label className="block text-xs text-muted-foreground mb-1">Закупка, ₽</label>
+                  <input inputMode="decimal" value={newPart.costPrice === 0 ? '' : newPart.costPrice}
+                    placeholder="0"
+                    onChange={(e) => setNewPart((p) => ({ ...p, costPrice: parseFloat(e.target.value.replace(/[^\d.]/g, '')) || 0 }))}
+                    className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Продажа, ₽</label>
                   <input inputMode="decimal" value={newPart.price === 0 ? '' : newPart.price}
                     placeholder="0"
                     onChange={(e) => setNewPart((p) => ({ ...p, price: parseFloat(e.target.value.replace(/[^\d.]/g, '')) || 0 }))}

@@ -15,7 +15,7 @@ function dbToPart(p: Record<string, unknown>): Part {
     id: p.id as string, article: p.article as string, name: p.name as string,
     brand: (p.brand as string) || '', category: (p.category as string) || '',
     quantity: Number(p.quantity), minQuantity: Number(p.min_quantity),
-    price: Number(p.price), location: (p.location as string) || '',
+    price: Number(p.price), costPrice: p.cost_price ? Number(p.cost_price) : undefined, location: (p.location as string) || '',
     analogs: (p.analogs as string[]) || [],
     oemArticle: (p.oem_article as string) || undefined,
     barcode: (p.barcode as string) || undefined,
@@ -45,6 +45,7 @@ export default function PartDetailModal({ part, onClose, onUpdated, onDeleted }:
     quantity: part.quantity,
     minQuantity: part.minQuantity,
     price: part.price,
+    costPrice: part.costPrice ?? 0,
     location: part.location,
     oemArticle: part.oemArticle || '',
     barcode: part.barcode || '',
@@ -96,6 +97,7 @@ export default function PartDetailModal({ part, onClose, onUpdated, onDeleted }:
         quantity: Number(editForm.quantity),
         minQuantity: Number(editForm.minQuantity),
         price: Number(editForm.price),
+        costPrice: Number(editForm.costPrice),
         location: editForm.location.trim(),
         oemArticle: editForm.oemArticle.trim() || undefined,
         barcode: editForm.barcode.trim() || undefined,
@@ -211,7 +213,14 @@ export default function PartDetailModal({ part, onClose, onUpdated, onDeleted }:
                     className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Цена, ₽</label>
+                  <label className="block text-xs text-muted-foreground mb-1">Закупка, ₽</label>
+                  <input inputMode="decimal" value={editForm.costPrice === 0 ? '' : editForm.costPrice}
+                    placeholder="0"
+                    onChange={(e) => setEditForm((f) => ({ ...f, costPrice: parseFloat(e.target.value.replace(/[^\d.]/g, '')) || 0 }))}
+                    className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring" />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Продажа, ₽</label>
                   <input inputMode="decimal" value={editForm.price === 0 ? '' : editForm.price}
                     placeholder="0"
                     onChange={(e) => setEditForm((f) => ({ ...f, price: parseFloat(e.target.value.replace(/[^\d.]/g, '')) || 0 }))}
@@ -292,7 +301,8 @@ export default function PartDetailModal({ part, onClose, onUpdated, onDeleted }:
                 {[
                   { label: 'Количество', value: `${qty} шт`, mono: true },
                   { label: 'Мин. остаток', value: `${part.minQuantity} шт`, mono: true },
-                  { label: 'Цена', value: `${part.price.toLocaleString()} ₽`, mono: true },
+                  { label: 'Закупка', value: part.costPrice ? `${part.costPrice.toLocaleString()} ₽` : '—', mono: true },
+                  { label: 'Продажа', value: `${part.price.toLocaleString()} ₽`, mono: true },
                   { label: 'Место', value: part.location || '—', mono: true },
                   { label: 'Категория', value: part.category, mono: false },
                   { label: 'Последнее движение', value: part.lastMovement || '—', mono: true },

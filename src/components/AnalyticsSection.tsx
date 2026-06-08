@@ -13,6 +13,7 @@ function dbToPart(r: Record<string, unknown>): Part {
     quantity: Number(r.quantity),
     minQuantity: Number(r.min_quantity),
     price: Number(r.price),
+    costPrice: r.cost_price ? Number(r.cost_price) : undefined,
     location: (r.location as string) || '',
     analogs: (r.analogs as string[]) || [],
     oemArticle: (r.oem_article as string) || undefined,
@@ -55,6 +56,14 @@ export default function AnalyticsSection() {
     ? Math.round((totalMargin / totalRevenue) * 100)
     : null;
 
+  // Маржа склада (по закупочным ценам деталей)
+  const partsWithCost = parts.filter(p => p.costPrice && p.costPrice > 0);
+  const stockCostValue = parts.reduce((s, p) => s + (p.costPrice || 0) * p.quantity, 0);
+  const stockMargin = totalValue - stockCostValue;
+  const stockMarginPercent = totalValue > 0 && stockCostValue > 0
+    ? Math.round((stockMargin / totalValue) * 100)
+    : null;
+
   const categoryStats = parts.reduce((acc, p) => {
     if (!acc[p.category]) acc[p.category] = { count: 0, value: 0 };
     acc[p.category].count += p.quantity;
@@ -73,7 +82,7 @@ export default function AnalyticsSection() {
     {
       label: 'Стоимость склада',
       value: totalValue.toLocaleString() + ' ₽',
-      sub: totalRevenue > 0 ? 'Выручка: ' + totalRevenue.toLocaleString('ru') + ' ₽' : null,
+      sub: stockCostValue > 0 ? 'Себест.: ' + stockCostValue.toLocaleString('ru') + ' ₽' : null,
       icon: 'TrendingUp',
       color: 'text-emerald-600',
     },
@@ -96,6 +105,45 @@ export default function AnalyticsSection() {
 
   return (
     <div className="space-y-6">
+
+      {/* Маржа склада */}
+      {partsWithCost.length > 0 && (
+        <div className="bg-white border border-border rounded-xl p-5">
+          <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+            <Icon name="Warehouse" size={15} className="text-foreground" />
+            Склад
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">По цене продажи</div>
+              <div className="text-2xl font-bold font-mono-data text-foreground">{totalValue.toLocaleString('ru')} ₽</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Себестоимость</div>
+              <div className="text-2xl font-bold font-mono-data">{stockCostValue.toLocaleString('ru')} ₽</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Потенц. маржа</div>
+              <div className={`text-2xl font-bold font-mono-data ${stockMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                {stockMargin.toLocaleString('ru')} ₽
+              </div>
+            </div>
+            {stockMarginPercent !== null && (
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Наценка</div>
+                <div className={`text-2xl font-bold font-mono-data ${stockMarginPercent >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {stockMarginPercent}%
+                </div>
+              </div>
+            )}
+          </div>
+          {partsWithCost.length < parts.length && (
+            <div className="mt-3 text-xs text-muted-foreground">
+              Закупочная цена указана у {partsWithCost.length} из {parts.length} позиций
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Финансы по заказам */}
       {orders.length > 0 && (

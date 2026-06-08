@@ -7,6 +7,7 @@ export interface Part {
   quantity: number;
   minQuantity: number;
   price: number;
+  costPrice?: number;
   location: string;
   analogs: string[];
   oemArticle?: string;

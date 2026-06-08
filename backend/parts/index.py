@@ -40,7 +40,7 @@ def handler(event: dict, context) -> dict:
         if method == 'GET' and not part_id:
             cur.execute(f"""
                 SELECT id, article, name, brand, category, quantity, min_quantity,
-                       price, location, analogs, oem_article, barcode, last_movement, created_at
+                       price, cost_price, location, analogs, oem_article, barcode, last_movement, created_at
                 FROM {SCHEMA}.parts
                 ORDER BY name, article
             """)
@@ -64,12 +64,13 @@ def handler(event: dict, context) -> dict:
                 pid = str(uuid.uuid4())
                 cur.execute(f"""
                     INSERT INTO {SCHEMA}.parts
-                      (id, article, name, brand, category, quantity, min_quantity, price, location, analogs, last_movement)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                      (id, article, name, brand, category, quantity, min_quantity, price, cost_price, location, analogs, last_movement)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 """, (
                     pid, p.get('article', ''), p.get('name', ''), p.get('brand', ''),
                     p.get('category', 'Расходники'), int(p.get('quantity', 0)),
                     int(p.get('minQuantity', 0)), float(p.get('price', 0)),
+                    float(p.get('costPrice', 0)),
                     p.get('location', ''), [], date.today().isoformat(),
                 ))
                 count += 1
@@ -81,13 +82,14 @@ def handler(event: dict, context) -> dict:
             pid = str(uuid.uuid4())
             cur.execute(f"""
                 INSERT INTO {SCHEMA}.parts
-                  (id, article, name, brand, category, quantity, min_quantity, price, location, analogs, oem_article, barcode, last_movement)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                  (id, article, name, brand, category, quantity, min_quantity, price, cost_price, location, analogs, oem_article, barcode, last_movement)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 RETURNING *
             """, (
                 pid, body.get('article', ''), body.get('name', ''), body.get('brand', ''),
                 body.get('category', 'Расходники'), int(body.get('quantity', 0)),
                 int(body.get('minQuantity', 0)), float(body.get('price', 0)),
+                float(body.get('costPrice', 0)),
                 body.get('location', ''), body.get('analogs', []),
                 body.get('oemArticle'), body.get('barcode'), date.today().isoformat(),
             ))
@@ -101,7 +103,7 @@ def handler(event: dict, context) -> dict:
             cur.execute(f"""
                 UPDATE {SCHEMA}.parts SET
                   article = %s, name = %s, brand = %s, category = %s,
-                  quantity = %s, min_quantity = %s, price = %s, location = %s,
+                  quantity = %s, min_quantity = %s, price = %s, cost_price = %s, location = %s,
                   analogs = %s, oem_article = %s, barcode = %s, last_movement = %s
                 WHERE id = %s
                 RETURNING *
@@ -109,6 +111,7 @@ def handler(event: dict, context) -> dict:
                 body.get('article', ''), body.get('name', ''), body.get('brand', ''),
                 body.get('category', 'Расходники'), int(body.get('quantity', 0)),
                 int(body.get('minQuantity', 0)), float(body.get('price', 0)),
+                float(body.get('costPrice', 0)),
                 body.get('location', ''), body.get('analogs', []),
                 body.get('oemArticle'), body.get('barcode'),
                 date.today().isoformat(), part_id,

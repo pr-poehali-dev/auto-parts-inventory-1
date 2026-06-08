@@ -3,10 +3,10 @@
     {
       "name": "GET all parts",
       "method": "GET",
-      "path": "/",
+      "path": "/?id=0ca86855-06ae-4054-80b8-36d7a8448cee",
       "expectedStatus": 200,
-      "expectedBody": [],
-      "bodyMatcher": "exact"
+      "expectedBody": {"id": "0ca86855-06ae-4054-80b8-36d7a8448cee", "cost_price": "0.00"},
+      "bodyMatcher": "partial"
     }
   ]
 }
