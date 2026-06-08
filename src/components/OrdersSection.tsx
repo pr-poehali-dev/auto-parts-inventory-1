@@ -356,16 +356,13 @@ export default function OrdersSection() {
                                 className="w-4 h-4 rounded accent-primary cursor-pointer shrink-0"
                               />
                               {item.article && (
-                                <div className="shrink-0 w-24 hidden sm:block">
+                                <div className="shrink-0 w-20">
                                   <span className="font-mono-data text-xs text-foreground font-medium">{item.article}</span>
                                 </div>
                               )}
                               <div className="flex-1 min-w-0">
                                 <span className="font-medium truncate block">{item.name || item.article}</span>
-                                <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
-                                  {item.article && <span className="sm:hidden font-mono-data">{item.article}</span>}
-                                  {item.brand && <span>{item.brand}</span>}
-                                </div>
+                                {item.brand && <div className="text-xs text-muted-foreground mt-0.5">{item.brand}</div>}
                               </div>
                               <div className="flex items-center gap-3 shrink-0">
                                 <span className={`hidden sm:inline-flex px-2 py-0.5 rounded-full text-xs border ${stInfo.cls}`}>
