@@ -174,7 +174,7 @@ export default function ClientCard({ client, onBack }: Props) {
   const orderMargin = orderTotal - orderCostTotal;
 
   const handleCreateOrder = async () => {
-    const validItems = orderItems.filter((i) => i.article && i.quantity > 0);
+    const validItems = orderItems.filter((i) => (i.article || i.name) && i.quantity > 0);
     if (!validItems.length) return;
     setSavingOrder(true);
     try {
