@@ -725,12 +725,19 @@ export default function ClientCard({ client, onBack }: Props) {
               <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Позиции заказа</div>
 
               {orderItems.map((item, idx) => (
-                <div key={idx} className="border border-border rounded-lg p-3 space-y-2 relative">
-                  {orderItems.length > 1 && (
-                    <button onClick={() => removeItem(idx)} className="absolute top-2 right-2 text-muted-foreground hover:text-red-500 transition-colors">
-                      <Icon name="Trash2" size={13} />
-                    </button>
-                  )}
+                <div key={idx} className="border-2 border-border rounded-xl overflow-hidden shadow-sm">
+                  {/* Шапка позиции */}
+                  <div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b border-border">
+                    <span className="text-xs font-semibold text-muted-foreground tracking-wide">
+                      ПОЗИЦИЯ {idx + 1}
+                    </span>
+                    {orderItems.length > 1 && (
+                      <button onClick={() => removeItem(idx)} className="text-muted-foreground hover:text-red-500 transition-colors">
+                        <Icon name="Trash2" size={14} />
+                      </button>
+                    )}
+                  </div>
+                  <div className="p-3 space-y-2">
                   <div className="relative">
                     <label className="block text-xs text-muted-foreground mb-1">Артикул</label>
                     <input
@@ -825,6 +832,7 @@ export default function ClientCard({ client, onBack }: Props) {
                         className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
+                  </div>
                   </div>
                 </div>
               ))}
