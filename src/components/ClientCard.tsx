@@ -806,6 +806,15 @@ export default function ClientCard({ client, onBack }: Props) {
                       )}
                     </div>
                   )}
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">Примечание к позиции</label>
+                    <input
+                      value={item.note ?? ''}
+                      onChange={(e) => updateItem(idx, 'note', e.target.value)}
+                      placeholder="Доп. информация по позиции..."
+                      className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
                 </div>
               ))}
 

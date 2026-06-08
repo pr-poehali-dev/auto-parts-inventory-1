@@ -73,6 +73,7 @@ export interface OrderItem {
   quantity: number;
   price: number;
   costPrice?: number;
+  note?: string;
 }
 
 export interface StatusHistoryEntry {
