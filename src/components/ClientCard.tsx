@@ -221,9 +221,32 @@ export default function ClientCard({ client, onBack }: Props) {
     setSavingBalance(true);
     try {
       const result = await changeBalance({ clientId: client.id, type: balanceMode, amount: amt, note: balanceNote });
-      setBalance((result as { balance: number }).balance);
+      const newBalance = (result as { balance: number }).balance;
+      setBalance(newBalance);
       const newHistory = await getBalanceHistory(client.id);
       setBalanceHistory(newHistory as BalanceEntry[]);
+
+      // При пополнении — распределяем деньги по активным заказам (от старых к новым)
+      if (balanceMode === 'add' && newBalance > 0) {
+        let remaining = newBalance;
+        const activeOrders = [...orders]
+          .filter((o) => !['cancelled', 'issued'].includes(o.status))
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const updatedOrders = [...orders];
+        for (const order of activeOrders) {
+          if (remaining <= 0) break;
+          const unpaid = order.total - order.prepaid;
+          if (unpaid <= 0) continue;
+          const toAdd = Math.min(remaining, unpaid);
+          const newPrepaid = order.prepaid + toAdd;
+          remaining -= toAdd;
+          await updateOrder(order.id, { prepaid: newPrepaid });
+          const idx = updatedOrders.findIndex((o) => o.id === order.id);
+          if (idx !== -1) updatedOrders[idx] = { ...updatedOrders[idx], prepaid: newPrepaid };
+        }
+        setOrders(updatedOrders);
+      }
+
       setBalanceAmount('');
       setBalanceNote('');
       setBalanceSaved(true);
