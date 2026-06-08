@@ -436,7 +436,7 @@ export default function ClientCard({ client, onBack }: Props) {
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold font-mono-data text-amber-600">
-              {orders.filter((o) => o.status === 'new' || o.status === 'in_progress').length}
+              {orders.filter((o) => !['done', 'cancelled'].includes(o.status)).length}
             </div>
             <div className="text-xs text-muted-foreground mt-0.5">В работе</div>
           </div>
