@@ -28,6 +28,8 @@ export default function OrdersSection() {
   const [clients, setClients] = useState<Record<string, Client>>({});
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'active' | 'all'>('active');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [search, setSearch] = useState('');
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
@@ -51,9 +53,21 @@ export default function OrdersSection() {
     }
   };
 
-  const displayed = orders.filter((o) =>
-    filter === 'active' ? ACTIVE_STATUSES.includes(o.status) : true
-  );
+  const q = search.toLowerCase().trim();
+
+  const displayed = orders.filter((o) => {
+    if (filter === 'active' && !ACTIVE_STATUSES.includes(o.status)) return false;
+    if (statusFilter && o.status !== statusFilter) return false;
+    if (q) {
+      const client = clients[o.clientId];
+      const clientMatch = client?.name?.toLowerCase().includes(q) || client?.phone?.includes(q);
+      const itemMatch = o.items.some((i) =>
+        i.name?.toLowerCase().includes(q) || i.article?.toLowerCase().includes(q)
+      );
+      if (!clientMatch && !itemMatch) return false;
+    }
+    return true;
+  });
 
   const activeCount = orders.filter((o) => ACTIVE_STATUSES.includes(o.status)).length;
 
@@ -67,28 +81,55 @@ export default function OrdersSection() {
 
   return (
     <div>
-      {/* Фильтр-вкладки */}
-      <div className="flex items-center gap-2 mb-4">
-        <button
-          onClick={() => setFilter('active')}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-            filter === 'active'
-              ? 'bg-foreground text-background border-foreground'
-              : 'bg-background text-muted-foreground border-border hover:border-foreground/30'
-          }`}
-        >
-          Активные {activeCount > 0 && <span className="ml-1 opacity-70">{activeCount}</span>}
-        </button>
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-            filter === 'all'
-              ? 'bg-foreground text-background border-foreground'
-              : 'bg-background text-muted-foreground border-border hover:border-foreground/30'
-          }`}
-        >
-          Все заказы
-        </button>
+      {/* Поиск + фильтры */}
+      <div className="flex flex-col sm:flex-row gap-2 mb-4">
+        <div className="relative flex-1">
+          <Icon name="Search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Клиент, телефон, артикул..."
+            className="w-full pl-8 pr-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              <Icon name="X" size={13} />
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setFilter('active'); setStatusFilter(''); }}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${
+              filter === 'active' && !statusFilter
+                ? 'bg-foreground text-background border-foreground'
+                : 'bg-background text-muted-foreground border-border hover:border-foreground/30'
+            }`}
+          >
+            Активные {activeCount > 0 && <span className="ml-1 opacity-70">{activeCount}</span>}
+          </button>
+          <button
+            onClick={() => { setFilter('all'); setStatusFilter(''); }}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${
+              filter === 'all' && !statusFilter
+                ? 'bg-foreground text-background border-foreground'
+                : 'bg-background text-muted-foreground border-border hover:border-foreground/30'
+            }`}
+          >
+            Все
+          </button>
+          <select
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setFilter('all'); }}
+            className="text-xs border border-border rounded-lg px-2 py-1.5 bg-background focus:outline-none focus:ring-2 focus:ring-ring text-muted-foreground"
+          >
+            <option value="">Любой статус</option>
+            {ALL_STATUSES.map((s) => (
+              <option key={s} value={s}>{STATUS_MAP[s]?.label ?? s}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {displayed.length === 0 ? (
