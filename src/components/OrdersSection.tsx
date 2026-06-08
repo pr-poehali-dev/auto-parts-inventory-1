@@ -365,7 +365,7 @@ export default function OrdersSection() {
 
                       {/* Итог + смена статуса */}
                       <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                        <div className="flex items-center gap-3 text-sm">
+                        <div className="flex items-center gap-3 text-sm flex-wrap">
                           <span className="text-muted-foreground">Итого:</span>
                           <span className="font-semibold font-mono-data">{order.total.toLocaleString('ru')} ₽</span>
                           {order.prepaid > 0 && (
@@ -374,6 +374,22 @@ export default function OrdersSection() {
                               <span className="font-mono-data text-emerald-600">{order.prepaid.toLocaleString('ru')} ₽</span>
                             </>
                           )}
+                          {(() => {
+                            const margin = order.items.reduce((sum, it) => {
+                              if (!it.costPrice) return sum;
+                              return sum + (it.price - it.costPrice) * it.quantity;
+                            }, 0);
+                            const hasCost = order.items.some(it => it.costPrice);
+                            if (!hasCost) return null;
+                            return (
+                              <>
+                                <span className="text-muted-foreground">Маржа:</span>
+                                <span className={`font-mono-data font-semibold ${margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                  {margin.toLocaleString('ru')} ₽
+                                </span>
+                              </>
+                            );
+                          })()}
                         </div>
 
                         <div className="flex items-center gap-2">
