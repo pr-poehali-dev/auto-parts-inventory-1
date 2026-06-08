@@ -174,10 +174,9 @@ export default function OrdersSection() {
       ) : (
         <div className="border border-border rounded-xl overflow-hidden bg-white">
           {/* Шапка таблицы */}
-          <div className="hidden md:grid grid-cols-[1fr_1.2fr_1.4fr_1fr_0.8fr_0.9fr] gap-3 px-4 py-2.5 bg-muted/40 border-b border-border text-xs text-muted-foreground font-medium">
+          <div className="hidden md:grid grid-cols-[1fr_1.4fr_1fr_0.8fr_0.9fr] gap-3 px-4 py-2.5 bg-muted/40 border-b border-border text-xs text-muted-foreground font-medium">
             <span>Дата</span>
             <span>Клиент</span>
-            <span>Состав</span>
             <span>Статус</span>
             <span>Сумма</span>
             <span>Оплата</span>
@@ -195,7 +194,7 @@ export default function OrdersSection() {
               <div key={order.id} className={idx > 0 ? 'border-t border-border' : ''}>
                 {/* Desktop строка */}
                 <div
-                  className="hidden md:grid grid-cols-[1fr_1.2fr_1.4fr_1fr_0.8fr_0.9fr] gap-3 px-4 py-3 hover:bg-muted/20 cursor-pointer transition-colors items-center"
+                  className="hidden md:grid grid-cols-[1fr_1.4fr_1fr_0.8fr_0.9fr] gap-3 px-4 py-3 hover:bg-muted/20 cursor-pointer transition-colors items-center"
                   onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
                 >
                   <div>
@@ -207,16 +206,6 @@ export default function OrdersSection() {
                   <div>
                     <div className="text-sm font-medium truncate">{clientName(client)}</div>
                     {client?.phone && <div className="text-xs text-muted-foreground">{client.phone}</div>}
-                  </div>
-                  <div>
-                    {firstName ? (
-                      <>
-                        <div className="text-sm truncate">{firstName.name || firstName.article}</div>
-                        {order.items.length > 1 && (
-                          <div className="text-xs text-muted-foreground">+{order.items.length - 1} позиций</div>
-                        )}
-                      </>
-                    ) : <span className="text-muted-foreground text-sm">—</span>}
                   </div>
                   <div>
                     <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border ${st.cls}`}>
