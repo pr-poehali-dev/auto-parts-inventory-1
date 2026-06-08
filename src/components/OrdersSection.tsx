@@ -32,7 +32,7 @@ export default function OrdersSection() {
   const [orders, setOrders] = useState<ClientOrder[]>([]);
   const [clients, setClients] = useState<Record<string, Client>>({});
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'active' | 'all'>('active');
+  const [filter, setFilter] = useState<'active' | 'all' | 'issued'>('active');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [search, setSearch] = useState('');
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
@@ -122,6 +122,7 @@ export default function OrdersSection() {
 
   const displayed = orders.filter((o) => {
     if (filter === 'active' && !ACTIVE_STATUSES.includes(o.status)) return false;
+    if (filter === 'issued' && o.status !== 'issued') return false;
     if (statusFilter && o.status !== statusFilter) return false;
     if (q) {
       const client = clients[o.clientId];
@@ -135,6 +136,7 @@ export default function OrdersSection() {
   });
 
   const activeCount = orders.filter((o) => ACTIVE_STATUSES.includes(o.status)).length;
+  const issuedCount = orders.filter((o) => o.status === 'issued').length;
 
   if (loading) {
     return (
@@ -173,6 +175,16 @@ export default function OrdersSection() {
             }`}
           >
             Активные {activeCount > 0 && <span className="ml-1 opacity-70">{activeCount}</span>}
+          </button>
+          <button
+            onClick={() => { setFilter('issued'); setStatusFilter(''); }}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${
+              filter === 'issued'
+                ? 'bg-foreground text-background border-foreground'
+                : 'bg-background text-muted-foreground border-border hover:border-foreground/30'
+            }`}
+          >
+            Выданные {issuedCount > 0 && <span className="ml-1 opacity-70">{issuedCount}</span>}
           </button>
           <button
             onClick={() => { setFilter('all'); setStatusFilter(''); }}
