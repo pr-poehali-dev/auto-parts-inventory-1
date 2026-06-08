@@ -74,6 +74,7 @@ export interface OrderItem {
   price: number;
   costPrice?: number;
   note?: string;
+  expectedDate?: string;
 }
 
 export interface StatusHistoryEntry {
