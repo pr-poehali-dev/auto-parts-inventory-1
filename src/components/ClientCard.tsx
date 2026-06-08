@@ -641,7 +641,6 @@ export default function ClientCard({ client, onBack }: Props) {
               const st = STATUS_MAP[order.status];
               const effectivePaid = order.prepaid + covered;
               const ps = effectivePaid >= order.total ? 'paid' : effectivePaid > 0 ? 'partial' : 'unpaid';
-              const debt = order.total - effectivePaid;
               return (
                 <div key={order.id} className="bg-white border border-border rounded-lg p-4 animate-fade-in">
                   <div className="flex items-center justify-between mb-3">
@@ -652,7 +651,6 @@ export default function ClientCard({ client, onBack }: Props) {
                     <div className="flex items-center gap-2 flex-wrap justify-end">
                       {ps === 'paid' && <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full"><Icon name="CheckCircle2" size={12} /> Оплачен</span>}
                       {ps === 'partial' && <span className="flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full"><Icon name="AlertCircle" size={12} /> Частично</span>}
-                      {ps === 'unpaid' && <span className="flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full"><Icon name="AlertTriangle" size={12} /> Не оплачен</span>}
                       {/* Кнопка статуса */}
                       <div className="relative">
                         <button
@@ -769,7 +767,7 @@ export default function ClientCard({ client, onBack }: Props) {
                           </button>
                         )}
                       </div>
-                      {ps !== 'paid' && <span className="text-xs text-red-500 font-mono-data">долг: {debt.toLocaleString()} ₽</span>}
+
                     </div>
                   </div>
 
