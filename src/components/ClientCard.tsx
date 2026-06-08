@@ -732,7 +732,7 @@ export default function ClientCard({ client, onBack }: Props) {
                     </button>
                   )}
                   <div className="relative">
-                    <label className="block text-xs text-muted-foreground mb-1">Артикул / Наименование</label>
+                    <label className="block text-xs text-muted-foreground mb-1">Артикул</label>
                     <input
                       value={articleQuery[idx] ?? item.article}
                       onChange={(e) => handleArticleSearch(idx, e.target.value)}
@@ -754,9 +754,15 @@ export default function ClientCard({ client, onBack }: Props) {
                       </div>
                     )}
                   </div>
-                  {item.name && (
-                    <div className="text-xs text-muted-foreground bg-muted/40 px-2 py-1 rounded">{item.name} · {item.brand}</div>
-                  )}
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">Наименование</label>
+                    <input
+                      value={item.name}
+                      onChange={(e) => updateItem(idx, 'name', e.target.value)}
+                      placeholder="Название запчасти"
+                      className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="block text-xs text-muted-foreground mb-1">Кол-во</label>
