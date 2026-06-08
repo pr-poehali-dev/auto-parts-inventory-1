@@ -36,7 +36,7 @@ export default function ClientCard({ client, onBack }: Props) {
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([
-    { article: '', name: '', brand: '', quantity: 1, price: 0 },
+    { article: '', name: '', brand: '', quantity: 1, price: 0, costPrice: 0 },
   ]);
   const [orderNote, setOrderNote] = useState('');
   const [orderPrepaid, setOrderPrepaid] = useState(0);
@@ -155,7 +155,7 @@ export default function ClientCard({ client, onBack }: Props) {
   const selectSuggestion = (idx: number, part: Part) => {
     setOrderItems((items) =>
       items.map((item, i) =>
-        i === idx ? { article: part.article, name: part.name, brand: part.brand, quantity: item.quantity, price: part.price } : item
+        i === idx ? { article: part.article, name: part.name, brand: part.brand, quantity: item.quantity, price: part.price, costPrice: item.costPrice ?? 0 } : item
       )
     );
     setArticleQuery((q) => ({ ...q, [idx]: part.article }));
@@ -166,10 +166,12 @@ export default function ClientCard({ client, onBack }: Props) {
     setOrderItems((items) => items.map((item, i) => i === idx ? { ...item, [field]: val } : item));
   };
 
-  const addItem = () => setOrderItems((i) => [...i, { article: '', name: '', brand: '', quantity: 1, price: 0 }]);
+  const addItem = () => setOrderItems((i) => [...i, { article: '', name: '', brand: '', quantity: 1, price: 0, costPrice: 0 }]);
   const removeItem = (idx: number) => setOrderItems((i) => i.filter((_, j) => j !== idx));
 
   const orderTotal = orderItems.reduce((s, i) => s + i.quantity * i.price, 0);
+  const orderCostTotal = orderItems.reduce((s, i) => s + i.quantity * (i.costPrice ?? 0), 0);
+  const orderMargin = orderTotal - orderCostTotal;
 
   const handleCreateOrder = async () => {
     const validItems = orderItems.filter((i) => i.article && i.quantity > 0);
@@ -755,20 +757,49 @@ export default function ClientCard({ client, onBack }: Props) {
                   {item.name && (
                     <div className="text-xs text-muted-foreground bg-muted/40 px-2 py-1 rounded">{item.name} · {item.brand}</div>
                   )}
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <div>
-                      <label className="block text-xs text-muted-foreground mb-1">Количество</label>
-                      <input type="number" min={1} value={item.quantity}
-                        onChange={(e) => updateItem(idx, 'quantity', +e.target.value)}
-                        className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring" />
+                      <label className="block text-xs text-muted-foreground mb-1">Кол-во</label>
+                      <input
+                        type="number" min={1}
+                        value={item.quantity === 0 ? '' : item.quantity}
+                        placeholder="1"
+                        onChange={(e) => updateItem(idx, 'quantity', e.target.value === '' ? 0 : +e.target.value)}
+                        className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
                     </div>
                     <div>
-                      <label className="block text-xs text-muted-foreground mb-1">Цена, ₽</label>
-                      <input type="number" min={0} value={item.price}
-                        onChange={(e) => updateItem(idx, 'price', +e.target.value)}
-                        className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring" />
+                      <label className="block text-xs text-muted-foreground mb-1">Закупка, ₽</label>
+                      <input
+                        type="number" min={0}
+                        value={item.costPrice === 0 ? '' : item.costPrice}
+                        placeholder="0"
+                        onChange={(e) => updateItem(idx, 'costPrice', e.target.value === '' ? 0 : +e.target.value)}
+                        className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">Продажа, ₽</label>
+                      <input
+                        type="number" min={0}
+                        value={item.price === 0 ? '' : item.price}
+                        placeholder="0"
+                        onChange={(e) => updateItem(idx, 'price', e.target.value === '' ? 0 : +e.target.value)}
+                        className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
                     </div>
                   </div>
+                  {/* Итог по позиции */}
+                  {(item.quantity > 0 && (item.price > 0 || (item.costPrice ?? 0) > 0)) && (
+                    <div className="flex items-center justify-between text-xs text-muted-foreground bg-muted/40 px-2 py-1.5 rounded-md">
+                      <span>Итого: <span className="font-mono-data font-medium text-foreground">{(item.quantity * item.price).toLocaleString()} ₽</span></span>
+                      {(item.costPrice ?? 0) > 0 && (
+                        <span>Маржа: <span className={`font-mono-data font-medium ${item.price - (item.costPrice ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {((item.price - (item.costPrice ?? 0)) * item.quantity).toLocaleString()} ₽
+                        </span></span>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
 
@@ -787,9 +818,24 @@ export default function ClientCard({ client, onBack }: Props) {
               {orderTotal > 0 && (
                 <div className="border border-border rounded-lg p-3 space-y-2 bg-muted/20">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Итого:</span>
+                    <span className="text-sm text-muted-foreground">Сумма продажи:</span>
                     <span className="font-semibold font-mono-data">{orderTotal.toLocaleString()} ₽</span>
                   </div>
+                  {orderCostTotal > 0 && (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Себестоимость:</span>
+                        <span className="font-mono-data text-sm text-muted-foreground">{orderCostTotal.toLocaleString()} ₽</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Маржа:</span>
+                        <span className={`font-mono-data text-sm font-semibold ${orderMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {orderMargin.toLocaleString()} ₽
+                          {orderTotal > 0 && <span className="text-xs font-normal ml-1">({Math.round(orderMargin / orderTotal * 100)}%)</span>}
+                        </span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex items-center gap-2">
                     <label className="text-sm text-muted-foreground shrink-0">Предоплата:</label>
                     <input type="number" min={0} value={orderPrepaid || ''}
