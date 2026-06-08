@@ -42,7 +42,22 @@ export default function OrdersSection() {
   useEffect(() => {
     setLoading(true);
     Promise.all([getOrders(), getClients()]).then(([ords, cls]) => {
-      setOrders((ords as ClientOrder[]).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      // Автоисправление: если позиции уже в нужном статусе, но заказ отстал
+      const fixedOrds = (ords as ClientOrder[]).map((o) => {
+        if (!o.items?.length) return o;
+        const allIssued = o.items.every((item) => item.status === 'issued');
+        const allInStock = o.items.every((item) => item.status === 'in_stock' || item.status === 'issued');
+        if (allIssued && o.status !== 'issued' && o.status !== 'cancelled') {
+          updateOrder(o.id, { status: 'issued' });
+          return { ...o, status: 'issued' };
+        }
+        if (allInStock && o.status === 'new' || allInStock && o.status === 'ordered') {
+          updateOrder(o.id, { status: 'in_stock' });
+          return { ...o, status: 'in_stock' };
+        }
+        return o;
+      });
+      setOrders(fixedOrds.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
       const map: Record<string, Client> = {};
       (cls as Client[]).forEach((c) => { map[c.id] = c; });
       setClients(map);
