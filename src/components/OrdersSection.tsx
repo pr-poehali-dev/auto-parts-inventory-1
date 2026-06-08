@@ -205,7 +205,12 @@ export default function OrdersSection() {
                   </div>
                   <div>
                     <div className="text-sm font-medium truncate">{clientName(client)}</div>
-                    {client?.phone && <div className="text-xs text-muted-foreground">{client.phone}</div>}
+                    <div className="text-xs text-muted-foreground">
+                      {client?.phone && <span>{client.phone}</span>}
+                      {order.items.length > 0 && (
+                        <span className={client?.phone ? 'ml-2' : ''}>{order.items.length} поз.</span>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border ${st.cls}`}>
