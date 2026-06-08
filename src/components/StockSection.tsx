@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Icon from '@/components/ui/icon';
 import { Part, CATEGORIES } from '@/data/mockData';
 import { getParts, createPart, deletePart } from '@/api';
@@ -33,6 +33,7 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
   const [sortBy, setSortBy] = useState<'name' | 'quantity' | 'price'>('name');
   const [showAddModal, setShowAddModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const articleInputRef = useRef<HTMLInputElement>(null);
   const [newPart, setNewPart] = useState({
     article: '', oemArticle: '', name: '', brand: '', category: CATEGORIES[0], quantity: 0, minQuantity: 3, price: 0, location: '',
   });
@@ -199,8 +200,30 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
               </button>
             </div>
             <div className="space-y-3">
+              {/* Артикул + кнопка сканера */}
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Артикул *</label>
+                <div className="flex gap-2">
+                  <input
+                    ref={articleInputRef}
+                    type="text"
+                    value={newPart.article}
+                    onChange={(e) => setNewPart((p) => ({ ...p, article: e.target.value }))}
+                    placeholder="Каталожный номер"
+                    className="flex-1 px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono-data placeholder:font-sans placeholder:text-muted-foreground"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => articleInputRef.current?.focus()}
+                    title="Нажми и сканируй штрих-кодом"
+                    className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-md text-sm text-muted-foreground hover:text-foreground hover:border-foreground/40 hover:bg-muted/40 transition-colors whitespace-nowrap"
+                  >
+                    <Icon name="Barcode" size={16} />
+                    <span className="hidden sm:inline">Сканер</span>
+                  </button>
+                </div>
+              </div>
               {[
-                { key: 'article', label: 'Артикул *', type: 'text', placeholder: 'Каталожный номер' },
                 { key: 'oemArticle', label: 'Оригинальный артикул (OEM)', type: 'text', placeholder: 'Заводской номер производителя' },
                 { key: 'name', label: 'Наименование *', type: 'text', placeholder: '' },
                 { key: 'brand', label: 'Бренд', type: 'text', placeholder: '' },
