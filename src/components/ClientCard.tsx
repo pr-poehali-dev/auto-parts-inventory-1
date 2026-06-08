@@ -480,23 +480,23 @@ export default function ClientCard({ client, onBack }: Props) {
           {/* Детализация баланса */}
           {(() => {
             const activeOrders = orders.filter((o) => !['cancelled', 'issued'].includes(o.status));
-            const inWork = activeOrders.reduce((sum, o) => sum + (o.total - o.prepaid), 0);
+            const inWork = activeOrders.reduce((sum, o) => sum + o.total, 0);
             const deposited = balanceHistory.filter((e) => e.amount > 0).reduce((sum, e) => sum + e.amount, 0);
-            const debt = balance < 0 ? Math.abs(balance) : 0;
+            const diff = deposited - inWork;
             return (
               <div className="grid grid-cols-3 gap-2 mb-3">
                 <div className="bg-muted/40 rounded-lg px-3 py-2">
                   <div className="text-xs text-muted-foreground mb-0.5">Внесено</div>
-                  <div className="font-mono-data font-semibold text-sm text-emerald-600">+{deposited.toLocaleString()} ₽</div>
+                  <div className="font-mono-data font-semibold text-sm text-emerald-600">{deposited.toLocaleString()} ₽</div>
                 </div>
                 <div className="bg-muted/40 rounded-lg px-3 py-2">
                   <div className="text-xs text-muted-foreground mb-0.5">В работе</div>
                   <div className="font-mono-data font-semibold text-sm text-amber-600">{inWork.toLocaleString()} ₽</div>
                 </div>
                 <div className="bg-muted/40 rounded-lg px-3 py-2">
-                  <div className="text-xs text-muted-foreground mb-0.5">Задолжен</div>
-                  <div className={`font-mono-data font-semibold text-sm ${debt > 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
-                    {debt > 0 ? `-${debt.toLocaleString()} ₽` : '0 ₽'}
+                  <div className="text-xs text-muted-foreground mb-0.5">Задолженность</div>
+                  <div className={`font-mono-data font-semibold text-sm ${diff > 0 ? 'text-emerald-600' : diff < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                    {diff > 0 ? '+' : ''}{diff.toLocaleString()} ₽
                   </div>
                 </div>
               </div>
