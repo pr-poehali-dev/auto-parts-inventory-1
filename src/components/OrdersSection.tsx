@@ -39,6 +39,7 @@ export default function OrdersSection() {
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [selectedItems, setSelectedItems] = useState<Record<string, Set<number>>>({});
   const [marginPopupId, setMarginPopupId] = useState<string | null>(null);
+  const [itemMarginPopup, setItemMarginPopup] = useState<string | null>(null); // `${orderId}-${itemIndex}`
 
   useEffect(() => {
     setLoading(true);
@@ -447,9 +448,46 @@ export default function OrdersSection() {
                                 <span className={`hidden sm:inline-flex px-2 py-0.5 rounded-full text-xs border ${stInfo.cls}`}>
                                   {stInfo.label}
                                 </span>
-                                <div className="text-right text-xs">
+                                <div className="text-right text-xs relative">
                                   <div>{item.quantity} шт</div>
-                                  <div className="text-muted-foreground">{(item.quantity * item.price).toLocaleString('ru')} ₽</div>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); const key = `${order.id}-${i}`; setItemMarginPopup(itemMarginPopup === key ? null : key); }}
+                                    className="text-muted-foreground hover:text-foreground underline decoration-dotted transition-colors"
+                                  >
+                                    {(item.quantity * item.price).toLocaleString('ru')} ₽
+                                  </button>
+                                  {itemMarginPopup === `${order.id}-${i}` && (() => {
+                                    const cost = (item.costPrice ?? 0) * item.quantity;
+                                    const sale = item.price * item.quantity;
+                                    const profit = sale - cost;
+                                    const hasCost = (item.costPrice ?? 0) > 0;
+                                    return (
+                                      <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-border rounded-xl shadow-xl z-50 p-3 animate-fade-in text-left" onClick={(e) => e.stopPropagation()}>
+                                        <div className="flex items-center justify-between mb-2">
+                                          <span className="text-xs font-medium truncate max-w-[140px]">{item.name || item.article}</span>
+                                          <button onClick={() => setItemMarginPopup(null)} className="text-muted-foreground hover:text-foreground shrink-0"><Icon name="X" size={12} /></button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                                          <span className="text-muted-foreground">Закупка (шт)</span>
+                                          <span className="font-mono-data text-right">{hasCost ? (item.costPrice!).toLocaleString() + ' ₽' : '—'}</span>
+                                          <span className="text-muted-foreground">Продажа (шт)</span>
+                                          <span className="font-mono-data text-right">{item.price.toLocaleString()} ₽</span>
+                                          <span className="text-muted-foreground">Кол-во</span>
+                                          <span className="font-mono-data text-right">{item.quantity} шт</span>
+                                          <div className="col-span-2 border-t border-border my-1" />
+                                          <span className="text-muted-foreground">Закупка (сумма)</span>
+                                          <span className="font-mono-data text-right">{hasCost ? cost.toLocaleString() + ' ₽' : '—'}</span>
+                                          <span className="text-muted-foreground">Продажа (сумма)</span>
+                                          <span className="font-mono-data font-medium text-right">{sale.toLocaleString()} ₽</span>
+                                          {hasCost && <>
+                                            <span className="text-muted-foreground">Профит</span>
+                                            <span className={`font-mono-data font-bold text-right ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{profit >= 0 ? '+' : ''}{profit.toLocaleString()} ₽</span>
+                                          </>}
+                                        </div>
+                                        {!hasCost && <div className="mt-2 text-xs text-amber-600">Укажи закупочную цену в карточке детали</div>}
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             </div>
