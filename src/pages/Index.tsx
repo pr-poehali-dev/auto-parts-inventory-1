@@ -4,6 +4,7 @@ import SearchSection from '@/components/SearchSection';
 import StockSection from '@/components/StockSection';
 import AnalyticsSection from '@/components/AnalyticsSection';
 import ClientsSection from '@/components/ClientsSection';
+import OrdersSection from '@/components/OrdersSection';
 import PartDetailModal from '@/components/PartDetailModal';
 import AuthScreen from '@/components/AuthScreen';
 import ProfileMenu from '@/components/ProfileMenu';
@@ -11,19 +12,21 @@ import { Part } from '@/data/mockData';
 import { getParts } from '@/api';
 import { useAuth } from '@/context/AuthContext';
 
-type Tab = 'search' | 'stock' | 'clients' | 'analytics';
+type Tab = 'search' | 'clients' | 'orders' | 'stock' | 'analytics';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'search', label: 'Поиск', icon: 'Search' },
-  { id: 'stock', label: 'Склад', icon: 'Package' },
   { id: 'clients', label: 'Клиенты', icon: 'Users' },
+  { id: 'orders', label: 'Заказы', icon: 'ClipboardList' },
+  { id: 'stock', label: 'Склад', icon: 'Package' },
   { id: 'analytics', label: 'Аналитика', icon: 'BarChart3' },
 ];
 
 const PAGE_TITLES: Record<Tab, { title: string; subtitle: string }> = {
   search: { title: 'Поиск по артикулу', subtitle: 'Найдите деталь по артикулу, названию, бренду или штрихкоду — система покажет аналоги' },
-  stock: { title: 'Остатки на складе', subtitle: 'Полный список позиций на складе с фильтрами и управлением остатками' },
   clients: { title: 'Клиенты', subtitle: 'Управление клиентами, история заказов и оформление новых' },
+  orders: { title: 'Заказы', subtitle: 'Список всех заказов с возможностью изменить статус' },
+  stock: { title: 'Остатки на складе', subtitle: 'Полный список позиций на складе с фильтрами и управлением остатками' },
   analytics: { title: 'Аналитика', subtitle: 'Статистика движения товаров и состояние склада' },
 };
 
@@ -114,8 +117,9 @@ export default function Index() {
         </div>
 
         {activeTab === 'search' && <SearchSection onSelectPart={setSelectedPart} />}
-        {activeTab === 'stock' && <StockSection key={stockKey} onSelectPart={setSelectedPart} />}
         {activeTab === 'clients' && <ClientsSection />}
+        {activeTab === 'orders' && <OrdersSection />}
+        {activeTab === 'stock' && <StockSection key={stockKey} onSelectPart={setSelectedPart} />}
         {activeTab === 'analytics' && <AnalyticsSection />}
       </main>
 
