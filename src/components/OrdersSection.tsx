@@ -80,9 +80,27 @@ export default function OrdersSection() {
     if (!order) return;
     const sel = selectedItems[orderId] ?? new Set();
     const newItems = order.items.map((item, i) => sel.has(i) ? { ...item, status: newItemStatus } : item);
-    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, items: newItems } : o));
+
+    // Автоматически обновляем статус заказа если все позиции одного статуса
+    let autoStatus: string | null = null;
+    if (newItems.every((item) => item.status === 'issued')) {
+      autoStatus = 'issued';
+    } else if (newItems.every((item) => item.status === 'in_stock' || item.status === 'issued')) {
+      autoStatus = 'in_stock';
+    }
+
+    const updatedOrder = autoStatus
+      ? { ...order, items: newItems, status: autoStatus }
+      : { ...order, items: newItems };
+
+    setOrders((prev) => prev.map((o) => o.id === orderId ? updatedOrder : o));
     setSelectedItems((prev) => ({ ...prev, [orderId]: new Set() }));
-    await updateOrder(orderId, { items: newItems });
+
+    if (autoStatus) {
+      await updateOrder(orderId, { items: newItems, status: autoStatus });
+    } else {
+      await updateOrder(orderId, { items: newItems });
+    }
   };
 
   const q = search.toLowerCase().trim();
