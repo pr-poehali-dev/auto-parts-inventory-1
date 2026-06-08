@@ -156,6 +156,8 @@ export default function ClientCard({ client, onBack }: Props) {
 
   const handleArticleSearch = (idx: number, val: string) => {
     setArticleQuery((q) => ({ ...q, [idx]: val }));
+    // Сразу сохраняем введённый артикул в позицию заказа
+    setOrderItems((items) => items.map((item, i) => i === idx ? { ...item, article: val } : item));
     if (val.length > 1) {
       const found = parts.filter(
         (p) => p.article.toLowerCase().includes(val.toLowerCase()) || p.name.toLowerCase().includes(val.toLowerCase())
