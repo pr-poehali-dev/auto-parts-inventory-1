@@ -60,6 +60,14 @@ export default function OrdersSection() {
     }
   };
 
+  const handleItemStatusChange = async (orderId: string, itemIdx: number, newItemStatus: 'pending' | 'in_stock' | 'issued') => {
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+    const newItems = order.items.map((item, i) => i === itemIdx ? { ...item, status: newItemStatus } : item);
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, items: newItems } : o));
+    await updateOrder(orderId, { items: newItems });
+  };
+
   const q = search.toLowerCase().trim();
 
   const displayed = orders.filter((o) => {
@@ -251,28 +259,54 @@ export default function OrdersSection() {
                     <div className="pt-3 space-y-3">
                       {/* Позиции */}
                       <div className="space-y-2">
-                        {order.items.map((item, i) => (
-                          <div key={i} className="flex items-start justify-between gap-3 text-sm">
-                            <div className="flex-1 min-w-0">
-                              <span className="font-medium truncate block">{item.name || item.article}</span>
-                              <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
-                                {item.article && <span>{item.article}</span>}
-                                {item.brand && <span>{item.brand}</span>}
-                                {item.expectedDate && (
-                                  <span className="text-amber-600">
-                                    ожидается {fmtDate(item.expectedDate)}
-                                  </span>
-                                )}
+                        {order.items.map((item, i) => {
+                          const itemSt = item.status ?? 'pending';
+                          return (
+                          <div key={i} className="text-sm">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <span className="font-medium truncate block">{item.name || item.article}</span>
+                                <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
+                                  {item.article && <span>{item.article}</span>}
+                                  {item.brand && <span>{item.brand}</span>}
+                                  {item.expectedDate && (
+                                    <span className="text-amber-600">
+                                      ожидается {fmtDate(item.expectedDate)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <div>{item.quantity} шт × {item.price.toLocaleString('ru')} ₽</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {(item.quantity * item.price).toLocaleString('ru')} ₽
+                                </div>
                               </div>
                             </div>
-                            <div className="text-right shrink-0">
-                              <div>{item.quantity} шт × {item.price.toLocaleString('ru')} ₽</div>
-                              <div className="text-xs text-muted-foreground">
-                                {(item.quantity * item.price).toLocaleString('ru')} ₽
-                              </div>
+                            {/* Кнопки статуса позиции */}
+                            <div className="flex gap-1.5 mt-1.5">
+                              <button
+                                onClick={() => handleItemStatusChange(order.id, i, 'pending')}
+                                className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${itemSt === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-300 font-medium' : 'bg-background text-muted-foreground border-border hover:border-yellow-300'}`}
+                              >
+                                Ожидается
+                              </button>
+                              <button
+                                onClick={() => handleItemStatusChange(order.id, i, 'in_stock')}
+                                className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${itemSt === 'in_stock' ? 'bg-purple-50 text-purple-700 border-purple-300 font-medium' : 'bg-background text-muted-foreground border-border hover:border-purple-300'}`}
+                              >
+                                На складе
+                              </button>
+                              <button
+                                onClick={() => handleItemStatusChange(order.id, i, 'issued')}
+                                className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${itemSt === 'issued' ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-medium' : 'bg-background text-muted-foreground border-border hover:border-emerald-300'}`}
+                              >
+                                Выдано
+                              </button>
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
 
                       {order.note && (

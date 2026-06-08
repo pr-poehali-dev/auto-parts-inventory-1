@@ -196,6 +196,10 @@ def handler(event: dict, context) -> dict:
                 fields.append('note = %s')
                 values.append(body['note'])
 
+            if 'items' in body:
+                fields.append('items = %s')
+                values.append(json.dumps(body['items'], ensure_ascii=False))
+
             if fields:
                 values.append(order_id)
                 cur.execute(f"UPDATE {SCHEMA}.client_orders SET {', '.join(fields)} WHERE id = %s RETURNING *", values)
