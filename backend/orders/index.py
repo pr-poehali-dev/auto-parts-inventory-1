@@ -8,7 +8,7 @@ import psycopg2
 SCHEMA = 't_p26023881_auto_parts_inventory'
 
 # Допустимые статусы и их русские названия
-STATUSES = ['new', 'ordered', 'in_stock', 'issued', 'done', 'cancelled']
+STATUSES = ['new', 'ordered', 'in_stock', 'issued', 'cancelled']
 
 def get_conn():
     return psycopg2.connect(os.environ['DATABASE_URL'])
@@ -171,7 +171,7 @@ def handler(event: dict, context) -> dict:
                 fields.append('status_history = %s')
                 values.append(json.dumps(history, ensure_ascii=False))
 
-                if new_status == 'done':
+                if new_status == 'issued':
                     cur.execute(f"SELECT client_id, total FROM {SCHEMA}.client_orders WHERE id = %s", (order_id,))
                     ord_row = cur.fetchone()
                     if ord_row:

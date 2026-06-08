@@ -15,13 +15,11 @@ const STATUS_MAP: Record<string, { label: string; cls: string; dot: string }> = 
   ordered:     { label: 'Заказан',           cls: 'text-blue-600 bg-blue-50 border-blue-200',         dot: 'bg-blue-500' },
   in_stock:    { label: 'На складе',         cls: 'text-purple-600 bg-purple-50 border-purple-200',   dot: 'bg-purple-500' },
   issued:      { label: 'Выдан',             cls: 'text-emerald-600 bg-emerald-50 border-emerald-200',dot: 'bg-emerald-500' },
-  done:        { label: 'Выполнен',          cls: 'text-emerald-700 bg-emerald-100 border-emerald-300',dot:'bg-emerald-600' },
   cancelled:   { label: 'Отменён',           cls: 'text-gray-500 bg-gray-100 border-gray-200',        dot: 'bg-gray-400' },
-  in_progress: { label: 'В работе',          cls: 'text-amber-600 bg-amber-50 border-amber-200',      dot: 'bg-amber-400' },
 };
 
-const ACTIVE_STATUSES = ['new', 'ordered', 'in_stock', 'in_progress', 'issued'];
-const ALL_STATUSES = ['new', 'ordered', 'in_stock', 'in_progress', 'issued', 'done', 'cancelled'];
+const ACTIVE_STATUSES = ['new', 'ordered', 'in_stock', 'issued'];
+const ALL_STATUSES = ['new', 'ordered', 'in_stock', 'issued', 'cancelled'];
 
 function fmtDate(iso: string) {
   const d = new Date(iso);

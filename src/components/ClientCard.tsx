@@ -14,9 +14,7 @@ const STATUS_MAP: Record<string, { label: string; cls: string; icon: string }> =
   ordered:   { label: 'Заказан',            cls: 'text-blue-600 bg-blue-50',       icon: 'ShoppingCart' },
   in_stock:  { label: 'Получен на склад',   cls: 'text-purple-600 bg-purple-50',   icon: 'PackageCheck' },
   issued:    { label: 'Выдан клиенту',      cls: 'text-emerald-600 bg-emerald-50', icon: 'HandCoins' },
-  done:      { label: 'Выполнен',           cls: 'text-emerald-700 bg-emerald-100','icon': 'CheckCircle2' },
   cancelled: { label: 'Отменён',            cls: 'text-muted-foreground bg-muted', icon: 'XCircle' },
-  in_progress: { label: 'В работе',         cls: 'text-amber-600 bg-amber-50',     icon: 'Wrench' },
 };
 
 function paymentStatus(order: ClientOrder) {

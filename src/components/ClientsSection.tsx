@@ -64,7 +64,7 @@ export default function ClientsSection() {
     return cos.some((o) => o.prepaid < o.total) || c.balance < 0;
   };
   const hasActive = (c: Client) =>
-    orders.some((o) => o.clientId === c.id && (o.status === 'new' || o.status === 'in_progress'));
+    orders.some((o) => o.clientId === c.id && (o.status === 'new' || o.status === 'ordered' || o.status === 'in_stock'));
 
   const visibleClients = clients.filter((c) => !c.isDeleted);
   const deletedClients = clients.filter((c) => c.isDeleted);
