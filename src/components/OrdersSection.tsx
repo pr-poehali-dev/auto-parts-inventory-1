@@ -355,11 +355,11 @@ export default function OrdersSection() {
                                 onClick={(e) => e.stopPropagation()}
                                 className="w-4 h-4 rounded accent-primary cursor-pointer shrink-0"
                               />
-                              {item.article && (
-                                <div className="shrink-0 w-20">
-                                  <span className="font-mono-data text-xs text-foreground font-medium">{item.article}</span>
-                                </div>
-                              )}
+                              <div className="shrink-0 w-20">
+                                <span className="font-mono-data text-xs text-foreground font-medium">
+                                  {item.article || <span className="text-muted-foreground">—</span>}
+                                </span>
+                              </div>
                               <div className="flex-1 min-w-0">
                                 <span className="font-medium truncate block">{item.name || item.article}</span>
                                 {item.brand && <div className="text-xs text-muted-foreground mt-0.5">{item.brand}</div>}
