@@ -312,7 +312,7 @@ export default function OrdersSection() {
                               <input
                                 type="checkbox"
                                 checked={checked}
-                                onChange={() => {}}
+                                onChange={(e) => { e.stopPropagation(); toggleItem(order.id, i); }}
                                 onClick={(e) => e.stopPropagation()}
                                 className="w-4 h-4 rounded accent-primary cursor-pointer shrink-0"
                               />
