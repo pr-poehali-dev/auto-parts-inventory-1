@@ -3,6 +3,13 @@ import Icon from '@/components/ui/icon';
 import { ClientOrder, Client } from '@/data/mockData';
 import { getOrders, getClients, updateOrder } from '@/api';
 
+function clientName(c?: Client): string {
+  if (!c) return '—';
+  if (c.type === 'company' && c.companyName) return c.companyName;
+  const parts = [c.lastName, c.firstName, c.middleName].filter(Boolean);
+  return parts.length ? parts.join(' ') : (c.phone ?? '—');
+}
+
 const STATUS_MAP: Record<string, { label: string; cls: string; dot: string }> = {
   new:         { label: 'Новый',             cls: 'text-yellow-700 bg-yellow-50 border-yellow-200',   dot: 'bg-yellow-400' },
   ordered:     { label: 'Заказан',           cls: 'text-blue-600 bg-blue-50 border-blue-200',         dot: 'bg-blue-500' },
@@ -60,7 +67,7 @@ export default function OrdersSection() {
     if (statusFilter && o.status !== statusFilter) return false;
     if (q) {
       const client = clients[o.clientId];
-      const clientMatch = client?.name?.toLowerCase().includes(q) || client?.phone?.includes(q);
+      const clientMatch = clientName(client).toLowerCase().includes(q) || client?.phone?.includes(q);
       const itemMatch = o.items.some((i) =>
         i.name?.toLowerCase().includes(q) || i.article?.toLowerCase().includes(q)
       );
@@ -171,7 +178,7 @@ export default function OrdersSection() {
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium truncate">{client?.name ?? '—'}</div>
+                    <div className="text-sm font-medium truncate">{clientName(client)}</div>
                     {client?.phone && <div className="text-xs text-muted-foreground">{client.phone}</div>}
                   </div>
                   <div>
@@ -212,7 +219,7 @@ export default function OrdersSection() {
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div>
-                      <div className="text-sm font-semibold">{client?.name ?? '—'}</div>
+                      <div className="text-sm font-semibold">{clientName(client)}</div>
                       {client?.phone && <div className="text-xs text-muted-foreground">{client.phone}</div>}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
