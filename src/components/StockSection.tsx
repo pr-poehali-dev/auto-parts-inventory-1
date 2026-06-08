@@ -33,10 +33,15 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
   const [sortBy, setSortBy] = useState<'name' | 'quantity' | 'price'>('name');
   const [showAddModal, setShowAddModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [barcodeQuery, setBarcodeQuery] = useState('');
+  const [barcodeFound, setBarcodeFound] = useState<Part | null | 'not_found'>(null);
+  const [showBarcodeSearch, setShowBarcodeSearch] = useState(false);
   const articleInputRef = useRef<HTMLInputElement>(null);
+  const scanSearchRef = useRef<HTMLInputElement>(null);
   const [newPart, setNewPart] = useState({
-    article: '', oemArticle: '', name: '', brand: '', category: CATEGORIES[0], quantity: 0, minQuantity: 3, price: 0, location: '',
+    article: '', oemArticle: '', name: '', brand: '', category: CATEGORIES[0], quantity: 0, minQuantity: 3, price: 0, location: '', barcode: '',
   });
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getParts()
@@ -58,6 +63,13 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
       return a.name.localeCompare(b.name);
     });
 
+  const handleBarcodeSearch = (value: string) => {
+    setBarcodeQuery(value);
+    if (!value.trim()) { setBarcodeFound(null); return; }
+    const found = parts.find((p) => p.barcode === value.trim());
+    setBarcodeFound(found ?? 'not_found');
+  };
+
   const handleAddPart = async () => {
     if (!newPart.article || !newPart.name) return;
     setSaving(true);
@@ -65,7 +77,7 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
       const created = await createPart(newPart);
       setParts((prev) => [...prev, dbToPart(created)]);
       setShowAddModal(false);
-      setNewPart({ article: '', oemArticle: '', name: '', brand: '', category: CATEGORIES[0], quantity: 0, minQuantity: 3, price: 0, location: '' });
+      setNewPart({ article: '', oemArticle: '', name: '', brand: '', category: CATEGORIES[0], quantity: 0, minQuantity: 3, price: 0, location: '', barcode: '' });
     } finally {
       setSaving(false);
     }
@@ -122,14 +134,59 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
           </select>
         </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-1.5 bg-foreground text-background rounded-md text-sm font-medium hover:bg-foreground/80 transition-colors"
-        >
-          <Icon name="Plus" size={14} />
-          Добавить деталь
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setBarcodeFound(null); setBarcodeQuery(''); setShowBarcodeSearch(true); setTimeout(() => scanSearchRef.current?.focus(), 50); }}
+            className="flex items-center gap-2 px-4 py-1.5 border border-border bg-white rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+          >
+            <Icon name="Barcode" size={14} />
+            Найти по сканеру
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-1.5 bg-foreground text-background rounded-md text-sm font-medium hover:bg-foreground/80 transition-colors"
+          >
+            <Icon name="Plus" size={14} />
+            Добавить деталь
+          </button>
+        </div>
       </div>
+
+      {/* Поиск по штрихкоду */}
+      {showBarcodeSearch && (
+        <div className="bg-white border border-border rounded-lg p-3 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <Icon name="Barcode" size={15} className="text-muted-foreground shrink-0" />
+            <input
+              ref={scanSearchRef}
+              type="text"
+              value={barcodeQuery}
+              onChange={(e) => handleBarcodeSearch(e.target.value)}
+              placeholder="Наведи сканер на штрихкод..."
+              className="flex-1 text-sm font-mono-data focus:outline-none placeholder:font-sans placeholder:text-muted-foreground"
+              autoFocus
+            />
+            <button onClick={() => { setBarcodeQuery(''); setBarcodeFound(null); setShowBarcodeSearch(false); }} className="text-muted-foreground hover:text-foreground shrink-0">
+              <Icon name="X" size={14} />
+            </button>
+          </div>
+          {barcodeFound === 'not_found' && (
+            <div className="text-xs text-red-500 pl-6">Деталь с таким штрихкодом не найдена</div>
+          )}
+          {barcodeFound && barcodeFound !== 'not_found' && (
+            <button
+              onClick={() => { onSelectPart(barcodeFound as Part); setBarcodeQuery(''); setBarcodeFound(null); setShowBarcodeSearch(false); }}
+              className="flex items-center justify-between gap-3 pl-6 pr-2 py-1.5 rounded-md bg-emerald-50 hover:bg-emerald-100 transition-colors text-left"
+            >
+              <div>
+                <div className="text-sm font-medium text-emerald-800">{(barcodeFound as Part).name}</div>
+                <div className="text-xs text-emerald-600 font-mono-data">{(barcodeFound as Part).article} · {(barcodeFound as Part).quantity} шт</div>
+              </div>
+              <Icon name="ChevronRight" size={14} className="text-emerald-600 shrink-0" />
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="bg-white border border-border rounded-lg overflow-hidden">
         <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-0 px-4 py-2 bg-muted/40 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -240,6 +297,29 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
                   />
                 </div>
               ))}
+              {/* Штрихкод */}
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Штрихкод</label>
+                <div className="flex gap-2">
+                  <input
+                    ref={barcodeInputRef}
+                    type="text"
+                    value={newPart.barcode}
+                    onChange={(e) => setNewPart((p) => ({ ...p, barcode: e.target.value }))}
+                    placeholder="Наведи сканер и нажми кнопку"
+                    className="flex-1 px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono-data placeholder:font-sans placeholder:text-muted-foreground"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { barcodeInputRef.current?.focus(); barcodeInputRef.current?.select(); }}
+                    title="Нажми и сканируй штрих-код"
+                    className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-md text-sm text-muted-foreground hover:text-foreground hover:border-foreground/40 hover:bg-muted/40 transition-colors whitespace-nowrap"
+                  >
+                    <Icon name="Barcode" size={16} />
+                    <span className="hidden sm:inline">Сканер</span>
+                  </button>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-muted-foreground mb-1">Кол-во</label>
