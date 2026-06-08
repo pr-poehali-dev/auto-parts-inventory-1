@@ -89,7 +89,23 @@ export default function ClientCard({ client, onBack }: Props) {
         setLocalClient(fresh);
         setEditVins(fresh.vins && fresh.vins.length > 0 ? fresh.vins : ['']);
       }),
-      getOrders(client.id).then((data: ClientOrder[]) => setOrders(data)),
+      getOrders(client.id).then((data: ClientOrder[]) => {
+        const fixedOrds = data.map((o) => {
+          if (!o.items?.length) return o;
+          const allIssued = o.items.every((item) => item.status === 'issued');
+          const allInStock = o.items.every((item) => item.status === 'in_stock' || item.status === 'issued');
+          if (allIssued && o.status !== 'issued' && o.status !== 'cancelled') {
+            updateOrder(o.id, { status: 'issued' });
+            return { ...o, status: 'issued' };
+          }
+          if ((o.status === 'new' || o.status === 'ordered') && allInStock) {
+            updateOrder(o.id, { status: 'in_stock' });
+            return { ...o, status: 'in_stock' };
+          }
+          return o;
+        });
+        setOrders(fixedOrds);
+      }),
       getBalanceHistory(client.id).then((data: BalanceEntry[]) => setBalanceHistory(data)),
       getParts().then((data: unknown[]) => setParts(data.map((r: unknown) => {
         const d = r as Record<string, unknown>;
