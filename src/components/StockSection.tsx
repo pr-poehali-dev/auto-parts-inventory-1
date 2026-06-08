@@ -257,47 +257,7 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
               </button>
             </div>
             <div className="space-y-3">
-              {/* Артикул + кнопка сканера */}
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">Артикул *</label>
-                <div className="flex gap-2">
-                  <input
-                    ref={articleInputRef}
-                    type="text"
-                    value={newPart.article}
-                    onChange={(e) => setNewPart((p) => ({ ...p, article: e.target.value }))}
-                    placeholder="Каталожный номер"
-                    className="flex-1 px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono-data placeholder:font-sans placeholder:text-muted-foreground"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => articleInputRef.current?.focus()}
-                    title="Нажми и сканируй штрих-кодом"
-                    className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-md text-sm text-muted-foreground hover:text-foreground hover:border-foreground/40 hover:bg-muted/40 transition-colors whitespace-nowrap"
-                  >
-                    <Icon name="Barcode" size={16} />
-                    <span className="hidden sm:inline">Сканер</span>
-                  </button>
-                </div>
-              </div>
-              {[
-                { key: 'oemArticle', label: 'Оригинальный артикул (OEM)', type: 'text', placeholder: 'Заводской номер производителя' },
-                { key: 'name', label: 'Наименование *', type: 'text', placeholder: '' },
-                { key: 'brand', label: 'Бренд', type: 'text', placeholder: '' },
-                { key: 'location', label: 'Место хранения', type: 'text', placeholder: '' },
-              ].map(({ key, label, type, placeholder }) => (
-                <div key={key}>
-                  <label className="block text-xs text-muted-foreground mb-1">{label}</label>
-                  <input
-                    type={type}
-                    value={(newPart as Record<string, unknown>)[key] as string}
-                    onChange={(e) => setNewPart((p) => ({ ...p, [key]: e.target.value }))}
-                    placeholder={placeholder}
-                    className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono-data placeholder:font-sans placeholder:text-muted-foreground"
-                  />
-                </div>
-              ))}
-              {/* Штрихкод */}
+              {/* Штрихкод — первым, со сканером */}
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">Штрихкод</label>
                 <div className="flex gap-2">
@@ -320,6 +280,36 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
                   </button>
                 </div>
               </div>
+              {/* Артикул — обычное поле */}
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Артикул *</label>
+                <input
+                  ref={articleInputRef}
+                  type="text"
+                  value={newPart.article}
+                  onChange={(e) => setNewPart((p) => ({ ...p, article: e.target.value }))}
+                  placeholder="Каталожный номер"
+                  className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono-data placeholder:font-sans placeholder:text-muted-foreground"
+                />
+              </div>
+              {[
+                { key: 'oemArticle', label: 'Оригинальный артикул (OEM)', type: 'text', placeholder: 'Заводской номер производителя' },
+                { key: 'name', label: 'Наименование *', type: 'text', placeholder: '' },
+                { key: 'brand', label: 'Бренд', type: 'text', placeholder: '' },
+                { key: 'location', label: 'Место хранения', type: 'text', placeholder: '' },
+              ].map(({ key, label, type, placeholder }) => (
+                <div key={key}>
+                  <label className="block text-xs text-muted-foreground mb-1">{label}</label>
+                  <input
+                    type={type}
+                    value={(newPart as Record<string, unknown>)[key] as string}
+                    onChange={(e) => setNewPart((p) => ({ ...p, [key]: e.target.value }))}
+                    placeholder={placeholder}
+                    className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono-data placeholder:font-sans placeholder:text-muted-foreground"
+                  />
+                </div>
+              ))}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-muted-foreground mb-1">Кол-во</label>
