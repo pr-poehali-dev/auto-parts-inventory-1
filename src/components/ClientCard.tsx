@@ -738,38 +738,7 @@ export default function ClientCard({ client, onBack }: Props) {
                     ))}
                   </div>
 
-                  <div className="mt-3 pt-3 border-t border-border">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 text-sm">
-                        <span className="text-muted-foreground">Предоплата:</span>
-                        {editPrepaidId === order.id ? (
-                          <div className="flex items-center gap-1.5">
-                            <input type="number" min={0} value={editPrepaidVal}
-                              onChange={(e) => setEditPrepaidVal(e.target.value)} autoFocus
-                              className="w-28 px-2 py-1 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring"
-                            />
-                            <button onClick={() => handleSavePrepaid(order.id)} className="p-1 text-emerald-600 hover:text-emerald-700">
-                              <Icon name="Check" size={14} />
-                            </button>
-                            <button onClick={() => setEditPrepaidId(null)} className="p-1 text-muted-foreground hover:text-foreground">
-                              <Icon name="X" size={14} />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => { setEditPrepaidId(order.id); setEditPrepaidVal(String(order.prepaid)); }}
-                            className="flex items-center gap-1 font-mono-data font-medium hover:text-foreground transition-colors group"
-                          >
-                            <span className={ps === 'paid' ? 'text-emerald-600' : ps === 'partial' ? 'text-amber-600' : 'text-red-500'}>
-                              {order.prepaid.toLocaleString()} ₽
-                            </span>
-                            <Icon name="Pencil" size={11} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </button>
-                        )}
-                      </div>
 
-                    </div>
-                  </div>
 
                   {order.note && <div className="mt-2 text-xs text-muted-foreground italic">{order.note}</div>}
                 </div>
