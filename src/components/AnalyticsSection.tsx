@@ -21,17 +21,34 @@ function dbToPart(r: Record<string, unknown>): Part {
   };
 }
 
+const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+
 export default function AnalyticsSection() {
   const [parts, setParts] = useState<Part[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const now = new Date();
+  const [periodType, setPeriodType] = useState<'month' | 'year' | 'all'>('month');
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
 
   useEffect(() => {
     Promise.all([
       getParts().then((data: unknown[]) => setParts(data.map(dbToPart))),
-      getOrders().then((data: Order[]) => setOrders(data)),
+      getOrders().then((data: Order[]) => setAllOrders(data)),
     ]).finally(() => setLoading(false));
   }, []);
+
+  const orders = allOrders.filter((o) => {
+    if (periodType === 'all') return true;
+    const d = new Date(o.date);
+    if (periodType === 'year') return d.getFullYear() === selectedYear;
+    return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth;
+  });
+
+  const availableYears = [...new Set(allOrders.map((o) => new Date(o.date).getFullYear()))].sort((a, b) => b - a);
+  if (!availableYears.includes(selectedYear)) availableYears.push(selectedYear);
 
   const movements: Movement[] = [];
 
@@ -105,6 +122,49 @@ export default function AnalyticsSection() {
 
   return (
     <div className="space-y-6">
+
+      {/* Выбор периода */}
+      <div className="bg-white border border-border rounded-xl p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex gap-1">
+            {(['month', 'year', 'all'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setPeriodType(t)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${periodType === t ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground hover:text-foreground'}`}
+              >
+                {t === 'month' ? 'Месяц' : t === 'year' ? 'Год' : 'Всё время'}
+              </button>
+            ))}
+          </div>
+          {periodType !== 'all' && (
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="px-2 py-1.5 border border-border rounded-lg text-xs bg-background focus:outline-none"
+            >
+              {availableYears.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+          )}
+          {periodType === 'month' && (
+            <div className="flex flex-wrap gap-1">
+              {MONTHS.map((m, i) => (
+                <button
+                  key={i}
+                  onClick={() => setSelectedMonth(i)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${selectedMonth === i ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground hover:text-foreground'}`}
+                >
+                  {m.slice(0, 3)}
+                </button>
+              ))}
+            </div>
+          )}
+          <span className="text-xs text-muted-foreground ml-auto">
+            {periodType === 'month' ? `${MONTHS[selectedMonth]} ${selectedYear}` : periodType === 'year' ? `${selectedYear} год` : 'Все заказы'}
+            {' · '}{orders.length} заказов
+          </span>
+        </div>
+      </div>
 
       {/* Маржа склада */}
       {partsWithCost.length > 0 && (
