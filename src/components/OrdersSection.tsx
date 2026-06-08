@@ -159,28 +159,22 @@ export default function OrdersSection() {
 
             return (
               <div key={order.id} className={idx > 0 ? 'border-t border-border' : ''}>
+                {/* Desktop строка */}
                 <div
-                  className="grid grid-cols-[1fr_1.2fr] md:grid-cols-[1fr_1.2fr_1.4fr_1fr_0.8fr_0.9fr] gap-3 px-4 py-3 hover:bg-muted/20 cursor-pointer transition-colors items-center"
+                  className="hidden md:grid grid-cols-[1fr_1.2fr_1.4fr_1fr_0.8fr_0.9fr] gap-3 px-4 py-3 hover:bg-muted/20 cursor-pointer transition-colors items-center"
                   onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
                 >
-                  {/* Дата */}
                   <div>
                     <div className="text-sm font-medium">{fmtDate(order.date)}</div>
                     <div className="text-xs text-muted-foreground">
                       {new Date(order.date).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
-
-                  {/* Клиент */}
                   <div>
                     <div className="text-sm font-medium truncate">{client?.name ?? '—'}</div>
-                    {client?.phone && (
-                      <div className="text-xs text-muted-foreground">{client.phone}</div>
-                    )}
+                    {client?.phone && <div className="text-xs text-muted-foreground">{client.phone}</div>}
                   </div>
-
-                  {/* Состав (только desktop) */}
-                  <div className="hidden md:block">
+                  <div>
                     {firstName ? (
                       <>
                         <div className="text-sm truncate">{firstName.name || firstName.article}</div>
@@ -190,51 +184,59 @@ export default function OrdersSection() {
                       </>
                     ) : <span className="text-muted-foreground text-sm">—</span>}
                   </div>
-
-                  {/* Статус */}
-                  <div className="hidden md:block">
+                  <div>
                     <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border ${st.cls}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
                       {st.label}
                     </span>
                   </div>
-
-                  {/* Сумма */}
-                  <div className="hidden md:block">
-                    <div className="text-sm font-semibold font-mono-data">
-                      {order.total.toLocaleString('ru')} ₽
-                    </div>
+                  <div>
+                    <div className="text-sm font-semibold font-mono-data">{order.total.toLocaleString('ru')} ₽</div>
                   </div>
-
-                  {/* Оплата */}
-                  <div className="hidden md:flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5">
                     {isPaid ? (
                       <span className="text-xs text-emerald-600 font-medium">оплачен</span>
                     ) : isPartial ? (
-                      <span className="text-xs text-amber-600 font-medium">
-                        {order.prepaid.toLocaleString('ru')} ₽
-                      </span>
+                      <span className="text-xs text-amber-600 font-medium">{order.prepaid.toLocaleString('ru')} ₽</span>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
-                    <Icon
-                      name={isExpanded ? 'ChevronUp' : 'ChevronDown'}
-                      size={14}
-                      className="text-muted-foreground ml-auto"
-                    />
+                    <Icon name={isExpanded ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground ml-auto" />
                   </div>
+                </div>
 
-                  {/* Mobile: статус + сумма */}
-                  <div className="md:hidden flex flex-col items-end gap-1">
+                {/* Mobile карточка */}
+                <div
+                  className="md:hidden px-4 py-3 hover:bg-muted/20 cursor-pointer transition-colors"
+                  onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div>
+                      <div className="text-sm font-semibold">{client?.name ?? '—'}</div>
+                      {client?.phone && <div className="text-xs text-muted-foreground">{client.phone}</div>}
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="text-right">
+                        <div className="text-sm font-semibold font-mono-data">{order.total.toLocaleString('ru')} ₽</div>
+                        {isPaid && <div className="text-xs text-emerald-600">оплачен</div>}
+                        {isPartial && <div className="text-xs text-amber-600">{order.prepaid.toLocaleString('ru')} ₽</div>}
+                      </div>
+                      <Icon name={isExpanded ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground" />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-muted-foreground">
+                      {fmtDate(order.date)}, {new Date(order.date).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })}
+                      {firstName && <span className="ml-2 text-foreground">{firstName.name || firstName.article}{order.items.length > 1 ? ` +${order.items.length - 1}` : ''}</span>}
+                    </div>
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${st.cls}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
                       {st.label}
                     </span>
-                    <span className="text-sm font-semibold font-mono-data">
-                      {order.total.toLocaleString('ru')} ₽
-                    </span>
                   </div>
                 </div>
+
+
 
                 {/* Раскрытая детализация */}
                 {isExpanded && (
