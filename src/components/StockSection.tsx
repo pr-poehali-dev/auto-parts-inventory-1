@@ -294,23 +294,27 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
                     value={newPart.barcode}
                     onChange={(e) => {
                       const val = e.target.value;
-                      setNewPart((p) => ({ ...p, barcode: val }));
-                      // Сканер вводит всё разом — проверяем сразу при каждом изменении
                       const norm = val.trim().toLowerCase();
-                      if (norm.length >= 4) {
-                        const found = parts.find((p) => (p.barcode || '').trim().toLowerCase() === norm);
-                        setBarcodeExisting(found ?? null);
+                      const found = norm.length >= 4
+                        ? parts.find((p) => (p.barcode || '').trim().toLowerCase() === norm) ?? null
+                        : null;
+                      if (found) {
+                        // Заполняем форму данными найденной детали
+                        setNewPart((p) => ({ ...p, barcode: val, article: found.article, name: found.name, brand: found.brand, location: found.location, category: found.category, costPrice: found.costPrice ?? 0, price: found.price }));
                       } else {
-                        setBarcodeExisting(null);
+                        setNewPart((p) => ({ ...p, barcode: val }));
                       }
+                      setBarcodeExisting(found);
                     }}
                     onKeyDown={(e) => {
-                      // Сканер нажимает Enter после ввода — финальная проверка
                       if (e.key === 'Enter') {
                         e.preventDefault();
-                        const val = (e.target as HTMLInputElement).value.trim().toLowerCase();
-                        const found = parts.find((p) => (p.barcode || '').trim().toLowerCase() === val);
-                        setBarcodeExisting(found ?? null);
+                        const val = (e.target as HTMLInputElement).value.trim();
+                        const found = parts.find((p) => (p.barcode || '').trim().toLowerCase() === val.toLowerCase()) ?? null;
+                        if (found) {
+                          setNewPart((p) => ({ ...p, barcode: val, article: found.article, name: found.name, brand: found.brand, location: found.location, category: found.category, costPrice: found.costPrice ?? 0, price: found.price }));
+                        }
+                        setBarcodeExisting(found);
                       }
                     }}
                     placeholder="Наведи сканер и нажми кнопку"
@@ -326,21 +330,14 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
                     <span className="hidden sm:inline">Сканер</span>
                   </button>
                 </div>
-                {/* Найдена существующая деталь по штрихкоду */}
+                {/* Найдена существующая деталь — поля заполнены */}
                 {barcodeExisting && (
-                  <div className="mt-2 flex items-center justify-between gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                  <div className="mt-2 flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                    <Icon name="CheckCircle" size={14} className="text-emerald-600 shrink-0" />
                     <div>
-                      <div className="text-xs text-emerald-700 font-medium">Деталь найдена на складе</div>
-                      <div className="text-sm font-semibold text-emerald-900">{barcodeExisting.name}</div>
-                      <div className="text-xs text-emerald-600 font-mono-data">{barcodeExisting.article} · {barcodeExisting.quantity} шт</div>
+                      <div className="text-xs text-emerald-700 font-medium">Поля заполнены из базы — проверь и нажми «Добавить»</div>
+                      <div className="text-xs text-emerald-600 font-mono-data">{barcodeExisting.article} · {barcodeExisting.quantity} шт на складе</div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => { onSelectPart(barcodeExisting); setShowAddModal(false); setBarcodeExisting(null); }}
-                      className="shrink-0 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
-                    >
-                      Открыть
-                    </button>
                   </div>
                 )}
                 {/* Штрихкод новый — предлагаем привязать к существующей детали */}
