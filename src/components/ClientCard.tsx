@@ -458,7 +458,7 @@ export default function ClientCard({ client, onBack }: Props) {
 
         {/* Баланс */}
         <div className="mt-4 pt-4 border-t border-border">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Icon name="Wallet" size={15} className="text-muted-foreground" />
               <span className="text-sm font-medium">Баланс клиента</span>
@@ -476,6 +476,32 @@ export default function ClientCard({ client, onBack }: Props) {
               Пополнить / Снять
             </button>
           </div>
+
+          {/* Детализация баланса */}
+          {(() => {
+            const activeOrders = orders.filter((o) => !['cancelled', 'issued'].includes(o.status));
+            const inWork = activeOrders.reduce((sum, o) => sum + (o.total - o.prepaid), 0);
+            const deposited = balanceHistory.filter((e) => e.amount > 0).reduce((sum, e) => sum + e.amount, 0);
+            const debt = balance < 0 ? Math.abs(balance) : 0;
+            return (
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <div className="bg-muted/40 rounded-lg px-3 py-2">
+                  <div className="text-xs text-muted-foreground mb-0.5">Внесено</div>
+                  <div className="font-mono-data font-semibold text-sm text-emerald-600">+{deposited.toLocaleString()} ₽</div>
+                </div>
+                <div className="bg-muted/40 rounded-lg px-3 py-2">
+                  <div className="text-xs text-muted-foreground mb-0.5">В работе</div>
+                  <div className="font-mono-data font-semibold text-sm text-amber-600">{inWork.toLocaleString()} ₽</div>
+                </div>
+                <div className="bg-muted/40 rounded-lg px-3 py-2">
+                  <div className="text-xs text-muted-foreground mb-0.5">Задолжен</div>
+                  <div className={`font-mono-data font-semibold text-sm ${debt > 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                    {debt > 0 ? `-${debt.toLocaleString()} ₽` : '0 ₽'}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {showBalance && (
             <div className="mt-3 border border-border rounded-lg p-3 space-y-2 animate-fade-in">
