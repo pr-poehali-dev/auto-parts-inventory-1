@@ -100,10 +100,25 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
     if (!newPart.article || !newPart.name) return;
     setSaving(true);
     try {
-      const created = await createPart(newPart);
-      setParts((prev) => [...prev, dbToPart(created)]);
+      if (barcodeExisting && newPart.quantity > 0) {
+        // Деталь уже есть — увеличиваем количество
+        const newQty = barcodeExisting.quantity + newPart.quantity;
+        const updated = await updatePart(barcodeExisting.id, {
+          article: barcodeExisting.article, name: barcodeExisting.name, brand: barcodeExisting.brand,
+          category: barcodeExisting.category, quantity: newQty, minQuantity: barcodeExisting.minQuantity,
+          price: barcodeExisting.price, costPrice: barcodeExisting.costPrice ?? 0,
+          location: barcodeExisting.location, analogs: barcodeExisting.analogs,
+          oemArticle: barcodeExisting.oemArticle, barcode: barcodeExisting.barcode,
+        });
+        const updatedPart = dbToPart(updated as Record<string, unknown>);
+        setParts((prev) => prev.map((p) => p.id === updatedPart.id ? updatedPart : p));
+      } else {
+        const created = await createPart(newPart);
+        setParts((prev) => [...prev, dbToPart(created)]);
+      }
       setShowAddModal(false);
       setBarcodeExisting(null);
+      setBarcodeAttachSearch('');
       setNewPart({ article: '', oemArticle: '', name: '', brand: '', category: CATEGORIES[0], quantity: 0, minQuantity: 3, price: 0, costPrice: 0, location: '', barcode: '' });
     } finally {
       setSaving(false);
@@ -330,13 +345,17 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
                     <span className="hidden sm:inline">Сканер</span>
                   </button>
                 </div>
-                {/* Найдена существующая деталь — поля заполнены */}
+                {/* Найдена существующая деталь — пополнение */}
                 {barcodeExisting && (
                   <div className="mt-2 flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
                     <Icon name="CheckCircle" size={14} className="text-emerald-600 shrink-0" />
                     <div>
-                      <div className="text-xs text-emerald-700 font-medium">Поля заполнены из базы — проверь и нажми «Добавить»</div>
-                      <div className="text-xs text-emerald-600 font-mono-data">{barcodeExisting.article} · {barcodeExisting.quantity} шт на складе</div>
+                      <div className="text-xs text-emerald-700 font-medium">
+                        Деталь найдена — укажи количество и нажми «Добавить»
+                      </div>
+                      <div className="text-xs text-emerald-600 font-mono-data">
+                        Сейчас на складе: {barcodeExisting.quantity} шт
+                      </div>
                     </div>
                   </div>
                 )}
