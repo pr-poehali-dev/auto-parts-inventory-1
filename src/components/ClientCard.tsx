@@ -221,10 +221,12 @@ export default function ClientCard({ client, onBack }: Props) {
     if (!validItems.length) return;
     setSavingOrder(true);
     try {
+      const total = validItems.reduce((s, i) => s + i.price * i.quantity, 0);
+      const autoPrep = orderPrepaid > 0 ? orderPrepaid : Math.min(Math.max(balance, 0), total);
       const created = await createOrder({
         clientId: client.id,
         items: validItems,
-        prepaid: orderPrepaid,
+        prepaid: autoPrep,
         note: orderNote,
         status: 'new',
       });
@@ -234,11 +236,10 @@ export default function ClientCard({ client, onBack }: Props) {
       setOrderNote('');
       setOrderPrepaid(0);
       setArticleQuery({});
-      if (orderPrepaid > 0) {
-        setBalance((b) => b - orderPrepaid);
-        const newHistory = await getBalanceHistory(client.id);
-        setBalanceHistory(newHistory as BalanceEntry[]);
-      }
+      const newHistory = await getBalanceHistory(client.id);
+      setBalanceHistory(newHistory as BalanceEntry[]);
+      const freshClient = await getClient(client.id);
+      setBalance((freshClient as { balance: number }).balance);
     } finally {
       setSavingOrder(false);
     }
@@ -255,9 +256,9 @@ export default function ClientCard({ client, onBack }: Props) {
       const newHistory = await getBalanceHistory(client.id);
       setBalanceHistory(newHistory as BalanceEntry[]);
 
-      // При пополнении — распределяем деньги по активным заказам (от старых к новым)
+      // При пополнении — распределяем добавленную сумму по активным заказам (от старых к новым)
       if (balanceMode === 'add' && newBalance > 0) {
-        let remaining = newBalance;
+        let remaining = amt;
         const activeOrders = [...orders]
           .filter((o) => !['cancelled', 'issued'].includes(o.status))
           .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
