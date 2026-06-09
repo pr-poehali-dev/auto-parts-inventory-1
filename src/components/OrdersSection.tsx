@@ -372,6 +372,17 @@ export default function OrdersSection() {
                       <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
                       {st.label}
                     </span>
+                    {(() => {
+                      const cells = order.items.map(i => i.storageCell).filter(Boolean) as string[];
+                      const unique = [...new Set(cells)];
+                      if (!unique.length) return null;
+                      return (
+                        <div className="flex items-center gap-1 mt-1">
+                          <Icon name="MapPin" size={10} className="text-blue-400 shrink-0" />
+                          <span className="text-xs text-blue-700 font-mono-data">{unique.join(', ')}</span>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div onClick={(e) => e.stopPropagation()}>
                     {editingNoteId === order.id ? (
@@ -435,10 +446,23 @@ export default function OrdersSection() {
                     <div className="text-xs text-muted-foreground">
                       {fmtDate(order.date)}, {new Date(order.date).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })}
                     </div>
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${st.cls}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
-                      {st.label}
-                    </span>
+                    <div className="flex flex-col items-end gap-0.5">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${st.cls}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
+                        {st.label}
+                      </span>
+                      {(() => {
+                        const cells = order.items.map(i => i.storageCell).filter(Boolean) as string[];
+                        const unique = [...new Set(cells)];
+                        if (!unique.length) return null;
+                        return (
+                          <div className="flex items-center gap-1">
+                            <Icon name="MapPin" size={9} className="text-blue-400 shrink-0" />
+                            <span className="text-xs text-blue-700 font-mono-data">{unique.join(', ')}</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
                   {editingNoteId === order.id ? (
                     <div className="mt-2" onClick={(e) => e.stopPropagation()}>
