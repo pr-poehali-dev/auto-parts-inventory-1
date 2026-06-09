@@ -289,10 +289,11 @@ export default function OrdersSection() {
       ) : (
         <div className="border border-border rounded-xl overflow-hidden bg-white">
           {/* Шапка таблицы */}
-          <div className="hidden md:grid grid-cols-[1fr_1.4fr_1fr_0.8fr_0.9fr] gap-3 px-4 py-2.5 bg-muted/40 border-b border-border text-xs text-muted-foreground font-medium">
+          <div className="hidden md:grid grid-cols-[1fr_1.4fr_1fr_1fr_0.8fr_0.9fr] gap-3 px-4 py-2.5 bg-muted/40 border-b border-border text-xs text-muted-foreground font-medium">
             <span>Дата</span>
             <span>Клиент</span>
             <span>Статус</span>
+            <span>Примечание</span>
             <span>Сумма</span>
             <span>Оплата</span>
           </div>
@@ -319,7 +320,7 @@ export default function OrdersSection() {
               <div key={order.id} className={idx > 0 ? 'border-t border-border' : ''}>
                 {/* Desktop строка */}
                 <div
-                  className="hidden md:grid grid-cols-[1fr_1.4fr_1fr_0.8fr_0.9fr] gap-3 px-4 py-3 hover:bg-muted/20 cursor-pointer transition-colors items-center"
+                  className="hidden md:grid grid-cols-[1fr_1.4fr_1fr_1fr_0.8fr_0.9fr] gap-3 px-4 py-3 hover:bg-muted/20 cursor-pointer transition-colors items-center"
                   onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
                 >
                   <div>
@@ -342,6 +343,26 @@ export default function OrdersSection() {
                       <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
                       {st.label}
                     </span>
+                  </div>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    {editingNoteId === order.id ? (
+                      <input
+                        autoFocus
+                        value={editingNoteVal}
+                        onChange={(e) => setEditingNoteVal(e.target.value)}
+                        onBlur={() => saveNote(order.id)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') saveNote(order.id); if (e.key === 'Escape') setEditingNoteId(null); }}
+                        placeholder="Примечание..."
+                        className="w-full text-xs px-2 py-1 border border-primary rounded outline-none bg-white"
+                      />
+                    ) : (
+                      <div
+                        className="text-xs text-muted-foreground italic cursor-pointer hover:text-foreground transition-colors truncate"
+                        onClick={() => { setEditingNoteId(order.id); setEditingNoteVal(order.note ?? ''); }}
+                      >
+                        {order.note || <span className="opacity-40">+ примечание</span>}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <div className="text-sm font-semibold font-mono-data">{order.total.toLocaleString('ru')} ₽</div>
