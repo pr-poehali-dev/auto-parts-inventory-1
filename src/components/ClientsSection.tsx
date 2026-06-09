@@ -319,13 +319,13 @@ export default function ClientsSection() {
               {search ? 'Никого не нашли' : 'Клиентов пока нет'}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {filtered.map((client) => {
+            <div className="bg-white border border-border rounded-xl overflow-hidden">
+              {filtered.map((client, idx) => {
                 const payStatus = getClientPaymentStatus(client.id);
                 return (
                   <div
                     key={client.id}
-                    className="bg-white border border-border rounded-xl p-4 cursor-pointer hover:border-foreground/30 transition-all animate-fade-in"
+                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors active:bg-muted/50 ${idx > 0 ? 'border-t border-border' : ''}`}
                     onClick={() => {
                       if (client.isDeleted) return;
                       getClient(client.id)
@@ -333,84 +333,41 @@ export default function ClientsSection() {
                         .catch(() => setSelected(client));
                     }}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 ${
-                        client.type === 'company' ? 'bg-yellow-100 text-yellow-800' : 'bg-muted text-foreground'
-                      }`}>
-                        {clientInitials(client)}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className="text-sm font-semibold truncate">{clientName(client)}</span>
-                          {client.type === 'company' && <Icon name="Building2" size={12} className="text-muted-foreground shrink-0" />}
-                        </div>
-                        <div className="text-xs text-muted-foreground font-mono-data">{client.phone}</div>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {isNew(client) && <span className="text-xs bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded">новый</span>}
-                        {payStatus === 'debt' && <Icon name="AlertTriangle" size={14} className="text-red-500" />}
-                        {payStatus === 'paid' && <Icon name="CheckCircle" size={14} className="text-emerald-500" />}
-                        {client.isDeleted ? (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleRestore(client); }}
-                            className="text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-1"
-                          >
-                            Восстановить
-                          </button>
-                        ) : (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDelete(client); }}
-                            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 transition-colors p-1 rounded"
-                          >
-                            <Icon name="Trash2" size={14} />
-                          </button>
-                        )}
-                      </div>
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                      client.type === 'company' ? 'bg-yellow-100 text-yellow-800' : 'bg-muted text-foreground'
+                    }`}>
+                      {clientInitials(client)}
                     </div>
 
-                    {!client.isDeleted && (() => {
-                      const clientOrders = orders.filter((o) => o.clientId === client.id && !['cancelled', 'issued'].includes(o.status));
-                      const inWork = clientOrders.reduce((sum, o) => sum + o.total, 0);
-                      return (
-                        <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-border">
-                          <div>
-                            <div className="text-xs text-muted-foreground">Баланс</div>
-                            <div className={`text-sm font-semibold font-mono-data ${client.balance > 0 ? 'text-emerald-600' : client.balance < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
-                              {client.balance >= 0 ? '+' : ''}{client.balance.toLocaleString()} ₽
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-muted-foreground">В работе</div>
-                            <div className="text-sm font-semibold font-mono-data text-amber-600">{inWork.toLocaleString()} ₽</div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-muted-foreground">Задолжен</div>
-                            <div className={`text-sm font-semibold font-mono-data ${client.balance > 0 ? 'text-emerald-600' : client.balance < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
-                              {client.balance >= 0 ? '+' : ''}{client.balance.toLocaleString()} ₽
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                    {client.city && (
-                      <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-                        <Icon name="MapPin" size={11} />
-                        {client.city}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-medium truncate">{clientName(client)}</span>
+                        {client.type === 'company' && <Icon name="Building2" size={11} className="text-muted-foreground shrink-0" />}
                       </div>
-                    )}
-                    {client.vins && client.vins.length > 0 && !client.isDeleted && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {client.vins.map((vin) => (
-                          <span key={vin} className="inline-flex items-center gap-1 font-mono-data text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">
-                            <Icon name="Car" size={10} />
-                            {vin}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {client.isDeleted && (
-                      <div className="mt-2 text-xs text-muted-foreground italic">Клиент удалён</div>
-                    )}
+                      <div className="text-xs text-muted-foreground font-mono-data">{client.phone}</div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isNew(client) && <span className="text-xs bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded">новый</span>}
+                      {payStatus === 'debt' && <Icon name="AlertTriangle" size={13} className="text-red-500" />}
+                      {payStatus === 'paid' && <Icon name="CheckCircle" size={13} className="text-emerald-500" />}
+                      {client.isDeleted ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleRestore(client); }}
+                          className="text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-1"
+                        >
+                          Восстановить
+                        </button>
+                      ) : (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDelete(client); }}
+                          className="text-muted-foreground hover:text-red-500 transition-colors p-1 rounded"
+                        >
+                          <Icon name="Trash2" size={13} />
+                        </button>
+                      )}
+                      <Icon name="ChevronRight" size={14} className="text-muted-foreground" />
+                    </div>
                   </div>
                 );
               })}
