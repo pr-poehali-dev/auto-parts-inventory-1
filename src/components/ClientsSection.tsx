@@ -33,7 +33,7 @@ export default function ClientsSection() {
   const [showAdd, setShowAdd] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<'name' | 'date' | 'orders' | 'spent'>('name');
+  const [sortBy, setSortBy] = useState<'name' | 'date' | 'orders'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [group, setGroup] = useState<'all' | 'new' | 'debt' | 'active' | 'deleted'>('all');
   const [form, setForm] = useState<Partial<Client>>({
@@ -192,7 +192,6 @@ export default function ClientsSection() {
             { id: 'name', label: 'А→Я', icon: 'ArrowUpAZ' },
             { id: 'date', label: 'Дата', icon: 'Calendar' },
             { id: 'orders', label: 'Заказы', icon: 'ShoppingCart' },
-            { id: 'spent', label: 'Сумма', icon: 'TrendingUp' },
           ] as const).map((s) => (
             <button
               key={s.id}
@@ -273,7 +272,6 @@ export default function ClientsSection() {
               { id: 'name', label: 'По алфавиту', icon: 'ArrowUpAZ' },
               { id: 'date', label: 'По дате', icon: 'Calendar' },
               { id: 'orders', label: 'По заказам', icon: 'ShoppingCart' },
-              { id: 'spent', label: 'По сумме', icon: 'TrendingUp' },
             ] as const).map((s, i, arr) => (
               <button
                 key={s.id}
