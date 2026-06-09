@@ -933,7 +933,7 @@ export default function OrdersSection() {
                     <div className="text-xs text-muted-foreground mt-0.5">Активных</div>
                   </div>
                   <div className="rounded-lg bg-muted/40 px-3 py-2.5 text-center">
-                    <div className="text-base font-semibold font-mono-data">{totalSpent > 0 ? `${(totalSpent / 1000).toFixed(0)}к` : '—'}</div>
+                    <div className="text-base font-semibold font-mono-data">{totalSpent > 0 ? `${totalSpent.toLocaleString('ru')} ₽` : '—'}</div>
                     <div className="text-xs text-muted-foreground mt-0.5">Куплено</div>
                   </div>
                 </div>
