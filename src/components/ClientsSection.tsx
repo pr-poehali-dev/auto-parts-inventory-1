@@ -350,20 +350,13 @@ export default function ClientsSection() {
                     <div className="flex items-center gap-2 shrink-0">
                       {isNew(client) && <span className="text-xs bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded">новый</span>}
                       {payStatus === 'debt' && <Icon name="AlertTriangle" size={13} className="text-red-500" />}
-                      {payStatus === 'paid' && <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">оплачен</span>}
-                      {client.isDeleted ? (
+                      {payStatus === 'paid' && <Icon name="Check" size={14} className="text-emerald-500" />}
+                      {client.isDeleted && (
                         <button
                           onClick={(e) => { e.stopPropagation(); handleRestore(client); }}
                           className="text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-1"
                         >
                           Восстановить
-                        </button>
-                      ) : (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDelete(client); }}
-                          className="text-muted-foreground hover:text-red-500 transition-colors p-1 rounded"
-                        >
-                          <Icon name="Trash2" size={13} />
                         </button>
                       )}
                       <Icon name="ChevronRight" size={14} className="text-muted-foreground" />
