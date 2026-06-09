@@ -47,6 +47,8 @@ export default function OrdersSection() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteVal, setEditingNoteVal] = useState('');
+  const [cellPopup, setCellPopup] = useState<{ orderId: string; cells: Record<number, string> } | null>(null);
+  const [editingCell, setEditingCell] = useState<{ orderId: string; itemIdx: number; val: string } | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -121,13 +123,25 @@ export default function OrdersSection() {
     });
   };
 
-  const applyItemStatus = async (orderId: string, newItemStatus: 'pending' | 'in_stock' | 'issued') => {
+  const applyItemStatus = async (orderId: string, newItemStatus: 'pending' | 'in_stock' | 'issued', cellsMap?: Record<number, string>) => {
     const order = orders.find((o) => o.id === orderId);
     if (!order) return;
     const sel = selectedItems[orderId] ?? new Set();
-    const newItems = order.items.map((item, i) => sel.has(i) ? { ...item, status: newItemStatus } : item);
 
-    // Автоматически обновляем статус заказа если все позиции одного статуса
+    // При переводе "На склад" — спрашиваем ячейки
+    if (newItemStatus === 'in_stock' && !cellsMap) {
+      const initCells: Record<number, string> = {};
+      sel.forEach((i) => { initCells[i] = order.items[i]?.storageCell ?? ''; });
+      setCellPopup({ orderId, cells: initCells });
+      return;
+    }
+
+    const newItems = order.items.map((item, i) => {
+      if (!sel.has(i)) return item;
+      const cell = cellsMap?.[i];
+      return { ...item, status: newItemStatus, ...(cell !== undefined ? { storageCell: cell } : {}) };
+    });
+
     let autoStatus: string | null = null;
     if (newItems.every((item) => item.status === 'issued')) {
       autoStatus = 'issued';
@@ -147,6 +161,21 @@ export default function OrdersSection() {
     } else {
       await updateOrder(orderId, { items: newItems });
     }
+  };
+
+  const saveCellAndApply = () => {
+    if (!cellPopup) return;
+    applyItemStatus(cellPopup.orderId, 'in_stock', cellPopup.cells);
+    setCellPopup(null);
+  };
+
+  const saveSingleCell = async (orderId: string, itemIdx: number, val: string) => {
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+    const newItems = order.items.map((item, i) => i === itemIdx ? { ...item, storageCell: val } : item);
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, items: newItems } : o));
+    setEditingCell(null);
+    await updateOrder(orderId, { items: newItems });
   };
 
   const saveNote = async (orderId: string) => {
@@ -490,10 +519,27 @@ export default function OrdersSection() {
                                 {item.note && <div className="text-xs text-muted-foreground italic mt-0.5">{item.note}</div>}
                               </div>
                               <div className="flex items-center gap-3 shrink-0">
-                                {item.storageCell && (
-                                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border border-blue-200 bg-blue-50 text-blue-700 font-mono-data">
-                                    <span className="text-blue-400">📦</span>{item.storageCell}
-                                  </span>
+                                {(item.storageCell || itemSt === 'in_stock') && (
+                                  editingCell?.orderId === order.id && editingCell?.itemIdx === i ? (
+                                    <input
+                                      autoFocus
+                                      value={editingCell.val}
+                                      onChange={(e) => setEditingCell({ ...editingCell, val: e.target.value })}
+                                      onBlur={() => saveSingleCell(order.id, i, editingCell.val)}
+                                      onKeyDown={(e) => { if (e.key === 'Enter') saveSingleCell(order.id, i, editingCell.val); if (e.key === 'Escape') setEditingCell(null); }}
+                                      onClick={(e) => e.stopPropagation()}
+                                      placeholder="Ячейка..."
+                                      className="w-24 px-2 py-0.5 border border-blue-300 rounded-md text-xs font-mono-data focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
+                                    />
+                                  ) : (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setEditingCell({ orderId: order.id, itemIdx: i, val: item.storageCell ?? '' }); }}
+                                      className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border border-blue-200 bg-blue-50 text-blue-700 font-mono-data hover:bg-blue-100 transition-colors"
+                                    >
+                                      <Icon name="MapPin" size={10} />
+                                      {item.storageCell || <span className="text-blue-400 italic">ячейка?</span>}
+                                    </button>
+                                  )
                                 )}
                                 <span className={`hidden sm:inline-flex px-2 py-0.5 rounded-full text-xs border ${stInfo.cls}`}>
                                   {stInfo.label}
@@ -766,6 +812,57 @@ export default function OrdersSection() {
           </div>
         </div>
       )}
+
+      {/* Попап ввода ячейки при переводе "На склад" */}
+      {cellPopup && (() => {
+        const order = orders.find((o) => o.id === cellPopup.orderId);
+        if (!order) return null;
+        const idxs = Object.keys(cellPopup.cells).map(Number);
+        return (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setCellPopup(null)}>
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-sm animate-slide-up" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border">
+                <div>
+                  <h3 className="text-base font-semibold">Ячейка на складе</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Укажи, куда положить товар</p>
+                </div>
+                <button onClick={() => setCellPopup(null)} className="text-muted-foreground hover:text-foreground"><Icon name="X" size={18} /></button>
+              </div>
+              <div className="px-5 py-4 space-y-3">
+                {idxs.map((i) => {
+                  const item = order.items[i];
+                  return (
+                    <div key={i}>
+                      <label className="block text-xs text-muted-foreground mb-1">
+                        <span className="font-mono-data font-medium text-foreground">{item.article}</span>
+                        {item.name && <span className="ml-1">{item.name}</span>}
+                      </label>
+                      <input
+                        autoFocus={i === idxs[0]}
+                        value={cellPopup.cells[i] ?? ''}
+                        onChange={(e) => setCellPopup((p) => p ? { ...p, cells: { ...p.cells, [i]: e.target.value } } : p)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') saveCellAndApply(); }}
+                        placeholder="Например: А-1, Б-3, Полка 2..."
+                        className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex gap-3 px-5 pb-5">
+                <button onClick={() => setCellPopup(null)}
+                  className="flex-1 px-4 py-2 border border-border rounded-md text-sm hover:bg-muted transition-colors">
+                  Отмена
+                </button>
+                <button onClick={saveCellAndApply}
+                  className="flex-1 px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:bg-foreground/80 transition-colors">
+                  На склад
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
