@@ -231,8 +231,9 @@ export default function OrdersSection() {
             const client = clients[order.clientId];
             const isExpanded = expandedOrder === order.id;
             const st = STATUS_MAP[order.status] ?? STATUS_MAP['new'];
-            const isPaid = order.prepaid >= order.total && order.total > 0;
-            const isPartial = order.prepaid > 0 && order.prepaid < order.total;
+            const balance = order.clientBalance ?? 0;
+            const isPaid = order.total > 0 && balance >= 0;
+            const isPartial = order.total > 0 && balance < 0 && balance > -order.total;
             const firstName = order.items[0];
 
             return (
@@ -270,7 +271,7 @@ export default function OrdersSection() {
                     {isPaid ? (
                       <span className="text-xs text-emerald-600 font-medium">оплачен</span>
                     ) : isPartial ? (
-                      <span className="text-xs text-amber-600 font-medium">{order.prepaid.toLocaleString('ru')} ₽</span>
+                      <span className="text-xs text-amber-600 font-medium">{(order.total + balance).toLocaleString('ru')} ₽</span>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
@@ -292,7 +293,7 @@ export default function OrdersSection() {
                       <div className="text-right">
                         <div className="text-sm font-semibold font-mono-data">{order.total.toLocaleString('ru')} ₽</div>
                         {isPaid && <div className="text-xs text-emerald-600">оплачен</div>}
-                        {isPartial && <div className="text-xs text-amber-600">{order.prepaid.toLocaleString('ru')} ₽</div>}
+                        {isPartial && <div className="text-xs text-amber-600">{(order.total + balance).toLocaleString('ru')} ₽</div>}
                       </div>
                       <Icon name={isExpanded ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground" />
                     </div>

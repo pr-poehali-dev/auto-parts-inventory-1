@@ -95,6 +95,7 @@ export interface ClientOrder {
   total: number;
   prepaid: number;
   note?: string;
+  clientBalance?: number;
 }
 
 export const mockClients: Client[] = [];

@@ -38,6 +38,7 @@ def row_to_order(cols, row):
         'total': float(d['total']),
         'prepaid': float(d['prepaid']),
         'note': d.get('note'),
+        'clientBalance': float(d['client_balance']) if d.get('client_balance') is not None else 0.0,
     }
 
 def now_iso():
@@ -64,16 +65,20 @@ def handler(event: dict, context) -> dict:
         if method == 'GET' and action != 'balance':
             if client_id_qs:
                 cur.execute(f"""
-                    SELECT id, client_id, date, status, status_history, items, total, prepaid, note
-                    FROM {SCHEMA}.client_orders
-                    WHERE client_id = %s
-                    ORDER BY date DESC, created_at DESC
+                    SELECT o.id, o.client_id, o.date, o.status, o.status_history, o.items, o.total, o.prepaid, o.note,
+                           c.balance as client_balance
+                    FROM {SCHEMA}.client_orders o
+                    JOIN {SCHEMA}.clients c ON c.id = o.client_id
+                    WHERE o.client_id = %s
+                    ORDER BY o.date DESC, o.created_at DESC
                 """, (client_id_qs,))
             else:
                 cur.execute(f"""
-                    SELECT id, client_id, date, status, status_history, items, total, prepaid, note
-                    FROM {SCHEMA}.client_orders
-                    ORDER BY date DESC, created_at DESC
+                    SELECT o.id, o.client_id, o.date, o.status, o.status_history, o.items, o.total, o.prepaid, o.note,
+                           c.balance as client_balance
+                    FROM {SCHEMA}.client_orders o
+                    JOIN {SCHEMA}.clients c ON c.id = o.client_id
+                    ORDER BY o.date DESC, o.created_at DESC
                 """)
             cols = [d[0] for d in cur.description]
             rows = [row_to_order(cols, row) for row in cur.fetchall()]
