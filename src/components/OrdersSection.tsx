@@ -300,7 +300,6 @@ export default function OrdersSection() {
                   <div className="flex items-center justify-between">
                     <div className="text-xs text-muted-foreground">
                       {fmtDate(order.date)}, {new Date(order.date).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })}
-                      {firstName && <span className="ml-2 text-foreground">{firstName.name || firstName.article}{order.items.length > 1 ? ` +${order.items.length - 1}` : ''}</span>}
                     </div>
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${st.cls}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
