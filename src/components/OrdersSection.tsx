@@ -258,11 +258,18 @@ export default function OrdersSection() {
             const isExpanded = expandedOrder === order.id;
             const st = STATUS_MAP[order.status] ?? STATUS_MAP['new'];
             const balance = order.clientBalance ?? 0;
-            // Показываем баланс только для первого заказа этого клиента в текущем списке
             const isFirstForClient = displayed.findIndex(o => o.clientId === order.clientId) === idx;
             const isPaid = isFirstForClient && balance >= 0;
             const isDebt = isFirstForClient && balance < 0;
             const firstName = order.items[0];
+
+            const hasCost = order.items.some(i => (i.costPrice ?? 0) > 0);
+            const margin = hasCost
+              ? order.items.reduce((s, i) => s + (i.price - (i.costPrice ?? 0)) * i.quantity, 0)
+              : null;
+            const marginPct = margin !== null && order.total > 0
+              ? Math.round(margin / order.total * 100)
+              : null;
 
             return (
               <div key={order.id} className={idx > 0 ? 'border-t border-border' : ''}>
@@ -294,6 +301,12 @@ export default function OrdersSection() {
                   </div>
                   <div>
                     <div className="text-sm font-semibold font-mono-data">{order.total.toLocaleString('ru')} ₽</div>
+                    {margin !== null && (
+                      <div className={`text-xs font-mono-data font-medium ${margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                        {margin >= 0 ? '+' : ''}{margin.toLocaleString('ru')} ₽
+                        {marginPct !== null && <span className="font-normal opacity-70 ml-1">({marginPct}%)</span>}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-1.5">
                     {isPaid ? (
@@ -320,6 +333,11 @@ export default function OrdersSection() {
                     <div className="flex items-center gap-1.5 shrink-0">
                       <div className="text-right">
                         <div className="text-sm font-semibold font-mono-data">{order.total.toLocaleString('ru')} ₽</div>
+                        {margin !== null && (
+                          <div className={`text-xs font-mono-data font-medium ${margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {margin >= 0 ? '+' : ''}{margin.toLocaleString('ru')} ₽{marginPct !== null && ` (${marginPct}%)`}
+                          </div>
+                        )}
                         {isPaid && <div className="text-xs text-emerald-600">оплачен</div>}
                         {isDebt && <div className="text-xs text-red-500">{balance.toLocaleString('ru')} ₽</div>}
                       </div>
