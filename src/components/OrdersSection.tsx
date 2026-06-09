@@ -40,6 +40,7 @@ export default function OrdersSection() {
   const [selectedItems, setSelectedItems] = useState<Record<string, Set<number>>>({});
   const [marginPopupId, setMarginPopupId] = useState<string | null>(null);
   const [itemMarginPopup, setItemMarginPopup] = useState<string | null>(null);
+  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'all'>('all');
   const [editingOrder, setEditingOrder] = useState<ClientOrder | null>(null);
   const [editItems, setEditItems] = useState<OrderItem[]>([]);
   const [editNote, setEditNote] = useState('');
@@ -148,10 +149,19 @@ export default function OrdersSection() {
 
   const q = search.toLowerCase().trim();
 
+  const periodStart = (() => {
+    const now = new Date();
+    if (period === 'day') { const d = new Date(now); d.setHours(0, 0, 0, 0); return d; }
+    if (period === 'week') { const d = new Date(now); d.setDate(d.getDate() - 6); d.setHours(0, 0, 0, 0); return d; }
+    if (period === 'month') { const d = new Date(now); d.setDate(d.getDate() - 29); d.setHours(0, 0, 0, 0); return d; }
+    return null;
+  })();
+
   const displayed = orders.filter((o) => {
     if (filter === 'active' && !ACTIVE_STATUSES.includes(o.status)) return false;
     if (filter === 'issued' && o.status !== 'issued') return false;
     if (statusFilter && o.status !== statusFilter) return false;
+    if (periodStart && new Date(o.date) < periodStart) return false;
     if (q) {
       const client = clients[o.clientId];
       const clientMatch = clientName(client).toLowerCase().includes(q) || client?.phone?.includes(q);
@@ -176,6 +186,23 @@ export default function OrdersSection() {
 
   return (
     <div>
+      {/* Период */}
+      <div className="flex items-center gap-1.5 mb-3">
+        {([['day', 'Сегодня'], ['week', 'Неделя'], ['month', 'Месяц'], ['all', 'Всё время']] as const).map(([val, label]) => (
+          <button
+            key={val}
+            onClick={() => setPeriod(val)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${
+              period === val
+                ? 'bg-foreground text-background border-foreground'
+                : 'bg-background text-muted-foreground border-border hover:border-foreground/30'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Поиск + фильтры */}
       <div className="flex flex-col sm:flex-row gap-2 mb-4">
         <div className="relative flex-1">
