@@ -176,6 +176,15 @@ export default function OrdersSection() {
   const activeCount = orders.filter((o) => ACTIVE_STATUSES.includes(o.status)).length;
   const issuedCount = orders.filter((o) => o.status === 'issued').length;
 
+  const totalSum = displayed.reduce((s, o) => s + o.total, 0);
+  const totalMargin = displayed.reduce((s, o) => {
+    const hasCost = o.items.some(i => (i.costPrice ?? 0) > 0);
+    if (!hasCost) return s;
+    return s + o.items.reduce((m, i) => m + (i.price - (i.costPrice ?? 0)) * i.quantity, 0);
+  }, 0);
+  const hasAnyMargin = displayed.some(o => o.items.some(i => (i.costPrice ?? 0) > 0));
+  const totalMarginPct = totalSum > 0 && hasAnyMargin ? Math.round(totalMargin / totalSum * 100) : null;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -580,6 +589,30 @@ export default function OrdersSection() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Итоговая строка */}
+      {displayed.length > 0 && (
+        <div className="mt-3 flex items-center justify-end gap-4 px-4 py-3 bg-white border border-border rounded-xl text-sm">
+          <span className="text-muted-foreground">{displayed.length} заказов</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">Сумма:</span>
+            <span className="font-semibold font-mono-data">{totalSum.toLocaleString('ru')} ₽</span>
+          </div>
+          {hasAnyMargin && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-muted-foreground">Маржа:</span>
+              <span className={`font-semibold font-mono-data ${totalMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                {totalMargin >= 0 ? '+' : ''}{totalMargin.toLocaleString('ru')} ₽
+              </span>
+              {totalMarginPct !== null && (
+                <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${totalMargin >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                  {totalMarginPct}%
+                </span>
+              )}
+            </div>
+          )}
         </div>
       )}
 
