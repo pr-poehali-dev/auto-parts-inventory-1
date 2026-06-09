@@ -59,10 +59,7 @@ export default function ClientsSection() {
     const diff = (Date.now() - new Date(c.createdAt).getTime()) / (1000 * 60 * 60 * 24);
     return diff <= 30;
   };
-  const hasDebt = (c: Client) => {
-    const cos = orders.filter((o) => o.clientId === c.id && o.status !== 'cancelled');
-    return cos.some((o) => o.prepaid < o.total) || c.balance < 0;
-  };
+  const hasDebt = (c: Client) => c.balance < 0;
   const hasActive = (c: Client) =>
     orders.some((o) => o.clientId === c.id && (o.status === 'new' || o.status === 'ordered' || o.status === 'in_stock'));
 
@@ -347,8 +344,9 @@ export default function ClientsSection() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      {isNew(client) && <span className="text-xs bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded">новый</span>}
                       {payStatus === 'debt' && <Icon name="AlertTriangle" size={13} className="text-red-500" />}
+                      {isNew(client) && <span className="text-xs bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded min-w-[42px] text-center">новый</span>}
+                      {!isNew(client) && payStatus !== 'debt' && <span className="min-w-[42px]" />}
                       {payStatus === 'paid' && <Icon name="Check" size={14} className="text-emerald-500" />}
                       {client.isDeleted && (
                         <button
