@@ -221,12 +221,10 @@ export default function ClientCard({ client, onBack }: Props) {
     if (!validItems.length) return;
     setSavingOrder(true);
     try {
-      const total = validItems.reduce((s, i) => s + i.price * i.quantity, 0);
-      const autoPrep = orderPrepaid > 0 ? orderPrepaid : Math.min(Math.max(balance, 0), total);
       const created = await createOrder({
         clientId: client.id,
         items: validItems,
-        prepaid: autoPrep,
+        prepaid: 0,
         note: orderNote,
         status: 'new',
       });
@@ -236,10 +234,6 @@ export default function ClientCard({ client, onBack }: Props) {
       setOrderNote('');
       setOrderPrepaid(0);
       setArticleQuery({});
-      const newHistory = await getBalanceHistory(client.id);
-      setBalanceHistory(newHistory as BalanceEntry[]);
-      const freshClient = await getClient(client.id);
-      setBalance((freshClient as { balance: number }).balance);
     } finally {
       setSavingOrder(false);
     }
@@ -255,27 +249,6 @@ export default function ClientCard({ client, onBack }: Props) {
       setBalance(newBalance);
       const newHistory = await getBalanceHistory(client.id);
       setBalanceHistory(newHistory as BalanceEntry[]);
-
-      // При пополнении — распределяем добавленную сумму по активным заказам (от старых к новым)
-      if (balanceMode === 'add' && newBalance > 0) {
-        let remaining = amt;
-        const activeOrders = [...orders]
-          .filter((o) => !['cancelled', 'issued'].includes(o.status))
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        const updatedOrders = [...orders];
-        for (const order of activeOrders) {
-          if (remaining <= 0) break;
-          const unpaid = order.total - order.prepaid;
-          if (unpaid <= 0) continue;
-          const toAdd = Math.min(remaining, unpaid);
-          const newPrepaid = order.prepaid + toAdd;
-          remaining -= toAdd;
-          await updateOrder(order.id, { prepaid: newPrepaid });
-          const idx = updatedOrders.findIndex((o) => o.id === order.id);
-          if (idx !== -1) updatedOrders[idx] = { ...updatedOrders[idx], prepaid: newPrepaid };
-        }
-        setOrders(updatedOrders);
-      }
 
       setBalanceAmount('');
       setBalanceNote('');
@@ -310,6 +283,12 @@ export default function ClientCard({ client, onBack }: Props) {
     const updated = await updateOrder(orderId, { status });
     setOrders((prev) => prev.map((o) => o.id === orderId ? updated as ClientOrder : o));
     setStatusPopupId(null);
+    if (status === 'issued') {
+      const freshClient = await getClient(client.id);
+      setBalance((freshClient as { balance: number }).balance);
+      const newHistory = await getBalanceHistory(client.id);
+      setBalanceHistory(newHistory as BalanceEntry[]);
+    }
   };
 
   const totalSpent = orders.filter((o) => o.status === 'done').reduce((s, o) => s + o.total, 0);
@@ -658,19 +637,8 @@ export default function ClientCard({ client, onBack }: Props) {
           </div>
         ) : (
           <div className="space-y-2">
-            {(() => {
-              // Распределяем положительный баланс по заказам (от старых к новым)
-              let remainingBalance = balance > 0 ? balance : 0;
-              return orders.map((order) => ({ order, extra: 0 })).reverse().map(({ order }) => {
-                const uncovered = Math.max(0, order.total - order.prepaid);
-                const covered = Math.min(remainingBalance, uncovered);
-                remainingBalance -= covered;
-                return { order, covered };
-              }).reverse();
-            })().map(({ order, covered }) => {
+            {orders.map((order) => {
               const st = STATUS_MAP[order.status];
-              const effectivePaid = order.prepaid + covered;
-              const ps = effectivePaid >= order.total ? 'paid' : effectivePaid > 0 ? 'partial' : 'unpaid';
               return (
                 <div key={order.id} className="bg-white border border-border rounded-lg p-4 animate-fade-in">
                   <div className="flex items-center justify-between mb-3">
@@ -679,8 +647,6 @@ export default function ClientCard({ client, onBack }: Props) {
                       <span className="text-sm text-muted-foreground">{order.date}</span>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap justify-end">
-                      {ps === 'paid' && <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full"><Icon name="CheckCircle2" size={12} /> Оплачен</span>}
-                      {ps === 'partial' && <span className="flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full"><Icon name="AlertCircle" size={12} /> Частично</span>}
                       <span className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${st?.cls || 'text-muted-foreground bg-muted'}`}>
                         <Icon name={(st?.icon || 'Clock') as 'Clock'} size={11} />
                         {st?.label || order.status}

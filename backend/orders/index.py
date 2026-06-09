@@ -177,10 +177,21 @@ def handler(event: dict, context) -> dict:
                 values.append(json.dumps(history, ensure_ascii=False))
 
                 if new_status == 'issued':
-                    cur.execute(f"SELECT client_id, total FROM {SCHEMA}.client_orders WHERE id = %s", (order_id,))
+                    cur.execute(f"SELECT client_id, total, status FROM {SCHEMA}.client_orders WHERE id = %s", (order_id,))
                     ord_row = cur.fetchone()
                     if ord_row:
-                        cur.execute(f"UPDATE {SCHEMA}.clients SET total_spent = total_spent + %s WHERE id = %s", (float(ord_row[1]), ord_row[0]))
+                        client_id_ord, total_ord, old_status = ord_row[0], float(ord_row[1]), ord_row[2]
+                        # Списываем сумму заказа с баланса только если статус меняется впервые на issued
+                        if old_status != 'issued':
+                            cur.execute(f"""
+                                UPDATE {SCHEMA}.clients
+                                SET total_spent = total_spent + %s, balance = balance - %s
+                                WHERE id = %s
+                            """, (total_ord, total_ord, client_id_ord))
+                            cur.execute(f"""
+                                INSERT INTO {SCHEMA}.balance_entries (id, client_id, date, entry_type, amount, note, order_id)
+                                VALUES (%s, %s, %s, 'remove', %s, 'Выдача заказа', %s)
+                            """, (str(uuid.uuid4()), client_id_ord, date.today().isoformat(), total_ord, order_id))
 
             if 'prepaid' in body:
                 new_prepaid = float(body['prepaid'])
