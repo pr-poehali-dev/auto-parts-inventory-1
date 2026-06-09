@@ -114,10 +114,9 @@ export default function ClientsSection() {
     });
 
   const getClientPaymentStatus = (clientId: string) => {
-    const cos = orders.filter((o) => o.clientId === clientId && o.status !== 'cancelled');
-    if (!cos.length) return null;
-    if (cos.every((o) => o.prepaid >= o.total)) return 'paid';
-    if (cos.some((o) => o.prepaid < o.total)) return 'debt';
+    const client = filtered.find((c) => c.id === clientId);
+    if (!client) return null;
+    if (client.balance < 0) return 'debt';
     return null;
   };
 
