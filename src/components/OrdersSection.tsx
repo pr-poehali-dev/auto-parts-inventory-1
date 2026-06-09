@@ -382,6 +382,9 @@ export default function OrdersSection() {
                       {st.label}
                     </span>
                   </div>
+                  {order.note && (
+                    <div className="mt-1.5 text-xs text-muted-foreground italic truncate">{order.note}</div>
+                  )}
                 </div>
 
 
