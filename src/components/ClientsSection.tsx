@@ -100,8 +100,8 @@ export default function ClientsSection() {
     .sort((a, b) => {
       let cmp = 0;
       if (sortBy === 'name') {
-        const na = (a.type === 'company' ? a.companyName : `${a.lastName} ${a.firstName}`) || '';
-        const nb = (b.type === 'company' ? b.companyName : `${b.lastName} ${b.firstName}`) || '';
+        const na = (a.type === 'company' ? a.companyName : (a.lastName || a.firstName || '')) || '';
+        const nb = (b.type === 'company' ? b.companyName : (b.lastName || b.firstName || '')) || '';
         cmp = na.localeCompare(nb, 'ru');
       } else if (sortBy === 'date') {
         cmp = a.createdAt.localeCompare(b.createdAt);
@@ -350,7 +350,7 @@ export default function ClientsSection() {
                     <div className="flex items-center gap-2 shrink-0">
                       {isNew(client) && <span className="text-xs bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded">новый</span>}
                       {payStatus === 'debt' && <Icon name="AlertTriangle" size={13} className="text-red-500" />}
-                      {payStatus === 'paid' && <Icon name="CheckCircle" size={13} className="text-emerald-500" />}
+                      {payStatus === 'paid' && <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">оплачен</span>}
                       {client.isDeleted ? (
                         <button
                           onClick={(e) => { e.stopPropagation(); handleRestore(client); }}
