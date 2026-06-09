@@ -77,6 +77,7 @@ export interface OrderItem {
   note?: string;
   expectedDate?: string;
   status?: 'pending' | 'in_stock' | 'issued';
+  storageCell?: string;
 }
 
 export interface StatusHistoryEntry {

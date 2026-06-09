@@ -490,6 +490,11 @@ export default function OrdersSection() {
                                 {item.note && <div className="text-xs text-muted-foreground italic mt-0.5">{item.note}</div>}
                               </div>
                               <div className="flex items-center gap-3 shrink-0">
+                                {item.storageCell && (
+                                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border border-blue-200 bg-blue-50 text-blue-700 font-mono-data">
+                                    <span className="text-blue-400">📦</span>{item.storageCell}
+                                  </span>
+                                )}
                                 <span className={`hidden sm:inline-flex px-2 py-0.5 rounded-full text-xs border ${stInfo.cls}`}>
                                   {stInfo.label}
                                 </span>

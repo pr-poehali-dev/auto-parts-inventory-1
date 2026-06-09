@@ -819,13 +819,22 @@ export default function ClientCard({ client, onBack }: Props) {
                       )}
                     </div>
                   )}
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="block text-xs text-muted-foreground mb-1">Ожидаемое поступление</label>
                       <input
                         type="date"
                         value={item.expectedDate ?? ''}
                         onChange={(e) => updateItem(idx, 'expectedDate', e.target.value)}
+                        className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">Ячейка на складе</label>
+                      <input
+                        value={item.storageCell ?? ''}
+                        onChange={(e) => updateItem(idx, 'storageCell', e.target.value)}
+                        placeholder="A1, Б-3..."
                         className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
@@ -1014,12 +1023,21 @@ export default function ClientCard({ client, onBack }: Props) {
                         )}
                       </div>
                     )}
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <div>
                         <label className="block text-xs text-muted-foreground mb-1">Ожидаемое поступление</label>
                         <input type="date"
                           value={item.expectedDate ?? ''}
                           onChange={(e) => updateItem(idx, 'expectedDate', e.target.value)}
+                          className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-muted-foreground mb-1">Ячейка на складе</label>
+                        <input
+                          value={item.storageCell ?? ''}
+                          onChange={(e) => updateItem(idx, 'storageCell', e.target.value)}
+                          placeholder="A1, Б-3..."
                           className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring"
                         />
                       </div>
