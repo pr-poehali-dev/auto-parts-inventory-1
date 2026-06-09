@@ -49,6 +49,7 @@ export default function OrdersSection() {
   const [editingNoteVal, setEditingNoteVal] = useState('');
   const [cellPopup, setCellPopup] = useState<{ orderId: string; cells: Record<number, string> } | null>(null);
   const [editingCell, setEditingCell] = useState<{ orderId: string; itemIdx: number; val: string } | null>(null);
+  const [clientPopup, setClientPopup] = useState<Client | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -359,7 +360,12 @@ export default function OrdersSection() {
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium truncate">{clientName(client)}</div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); if (client) setClientPopup(client); }}
+                      className="text-sm font-medium truncate hover:underline text-left"
+                    >
+                      {clientName(client)}
+                    </button>
                     <div className="text-xs text-muted-foreground">
                       {client?.phone && <span>{client.phone}</span>}
                       {order.items.length > 0 && (
@@ -426,7 +432,12 @@ export default function OrdersSection() {
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div>
-                      <div className="text-sm font-semibold">{clientName(client)}</div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); if (client) setClientPopup(client); }}
+                        className="text-sm font-semibold hover:underline text-left"
+                      >
+                        {clientName(client)}
+                      </button>
                       {client?.phone && <div className="text-xs text-muted-foreground">{client.phone}</div>}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -882,6 +893,56 @@ export default function OrdersSection() {
                   className="flex-1 px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:bg-foreground/80 transition-colors">
                   На склад
                 </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Мини-карточка клиента */}
+      {clientPopup && (() => {
+        const c = clientPopup;
+        const clientOrders = orders.filter((o) => o.clientId === c.id && o.status !== 'cancelled');
+        const totalSpent = clientOrders.reduce((s, o) => s + o.total, 0);
+        const activeCount = clientOrders.filter((o) => ['new', 'ordered', 'in_stock'].includes(o.status)).length;
+        return (
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px] flex items-start justify-center z-50 pt-20 px-4" onClick={() => setClientPopup(null)}>
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm animate-slide-up" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-start justify-between px-5 pt-5 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-foreground text-background flex items-center justify-center text-sm font-semibold shrink-0">
+                    {clientName(c).slice(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-base leading-tight">{clientName(c)}</div>
+                    {c.phone && <div className="text-sm text-muted-foreground font-mono-data mt-0.5">{c.phone}</div>}
+                  </div>
+                </div>
+                <button onClick={() => setClientPopup(null)} className="text-muted-foreground hover:text-foreground mt-0.5"><Icon name="X" size={18} /></button>
+              </div>
+              <div className="px-5 pb-5 space-y-2">
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-lg bg-muted/40 px-3 py-2.5 text-center">
+                    <div className={`text-base font-semibold font-mono-data ${c.balance < 0 ? 'text-red-500' : c.balance > 0 ? 'text-emerald-600' : 'text-foreground'}`}>
+                      {c.balance >= 0 ? '+' : ''}{c.balance.toLocaleString('ru')} ₽
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Баланс</div>
+                  </div>
+                  <div className="rounded-lg bg-muted/40 px-3 py-2.5 text-center">
+                    <div className="text-base font-semibold font-mono-data">{activeCount}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Активных</div>
+                  </div>
+                  <div className="rounded-lg bg-muted/40 px-3 py-2.5 text-center">
+                    <div className="text-base font-semibold font-mono-data">{totalSpent > 0 ? `${(totalSpent / 1000).toFixed(0)}к` : '—'}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Куплено</div>
+                  </div>
+                </div>
+                {c.balance < 0 && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg text-xs text-red-600">
+                    <Icon name="AlertTriangle" size={13} />
+                    Задолженность {Math.abs(c.balance).toLocaleString('ru')} ₽
+                  </div>
+                )}
               </div>
             </div>
           </div>
