@@ -345,13 +345,7 @@ export default function OrdersSection() {
                     )}
                   </div>
                   <div className="flex items-center gap-1.5">
-                    {isPaid ? (
-                      <span className="text-xs text-emerald-600 font-medium">оплачен</span>
-                    ) : isDebt ? (
-                      <span className="text-xs text-red-500 font-medium">{balance.toLocaleString('ru')} ₽</span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
+                    {isDebt && <span className="text-xs text-red-500 font-medium">{balance.toLocaleString('ru')} ₽</span>}
                     <Icon name={isExpanded ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground ml-auto" />
                   </div>
                 </div>
@@ -374,7 +368,6 @@ export default function OrdersSection() {
                             {margin >= 0 ? '+' : ''}{margin.toLocaleString('ru')} ₽{marginPct !== null && ` (${marginPct}%)`}
                           </div>
                         )}
-                        {isPaid && <div className="text-xs text-emerald-600">оплачен</div>}
                         {isDebt && <div className="text-xs text-red-500">{balance.toLocaleString('ru')} ₽</div>}
                       </div>
                       <Icon name={isExpanded ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground" />
