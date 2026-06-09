@@ -157,13 +157,29 @@ export default function ClientCard({ client, onBack }: Props) {
 
   const handleArticleSearch = (idx: number, val: string) => {
     setArticleQuery((q) => ({ ...q, [idx]: val }));
-    // Сразу сохраняем введённый артикул в позицию заказа
     setOrderItems((items) => items.map((item, i) => i === idx ? { ...item, article: val } : item));
     if (val.length > 1) {
-      const found = parts.filter(
-        (p) => p.article.toLowerCase().includes(val.toLowerCase()) || p.name.toLowerCase().includes(val.toLowerCase())
+      const q = val.toLowerCase();
+      // Из склада
+      const fromParts: Part[] = parts.filter(
+        (p) => p.article.toLowerCase().includes(q) || p.name.toLowerCase().includes(q)
       ).slice(0, 5);
-      setArticleSuggestions((s) => ({ ...s, [idx]: found }));
+      // Из истории заказов — собираем уникальные артикулы
+      const seen = new Set(fromParts.map(p => p.article.toLowerCase()));
+      const fromHistory: Part[] = [];
+      for (const o of orders) {
+        for (const it of o.items) {
+          if (!it.article) continue;
+          const key = it.article.toLowerCase();
+          if (!seen.has(key) && (key.includes(q) || (it.name || '').toLowerCase().includes(q))) {
+            seen.add(key);
+            fromHistory.push({ id: `hist-${key}`, article: it.article, name: it.name || '', brand: it.brand || '', price: it.price, quantity: 0, costPrice: it.costPrice ?? 0 } as Part);
+            if (fromHistory.length >= 5) break;
+          }
+        }
+        if (fromHistory.length >= 5) break;
+      }
+      setArticleSuggestions((s) => ({ ...s, [idx]: [...fromParts, ...fromHistory].slice(0, 7) }));
     } else {
       setArticleSuggestions((s) => ({ ...s, [idx]: [] }));
     }
@@ -740,14 +756,25 @@ export default function ClientCard({ client, onBack }: Props) {
                       </div>
                     )}
                   </div>
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1">Наименование</label>
-                    <input
-                      value={item.name}
-                      onChange={(e) => updateItem(idx, 'name', e.target.value)}
-                      placeholder="Название запчасти"
-                      className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">Наименование</label>
+                      <input
+                        value={item.name}
+                        onChange={(e) => updateItem(idx, 'name', e.target.value)}
+                        placeholder="Название запчасти"
+                        className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">Бренд</label>
+                      <input
+                        value={item.brand}
+                        onChange={(e) => updateItem(idx, 'brand', e.target.value)}
+                        placeholder="Производитель"
+                        className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div>
@@ -928,14 +955,25 @@ export default function ClientCard({ client, onBack }: Props) {
                         </div>
                       )}
                     </div>
-                    <div>
-                      <label className="block text-xs text-muted-foreground mb-1">Наименование</label>
-                      <input
-                        value={item.name}
-                        onChange={(e) => updateItem(idx, 'name', e.target.value)}
-                        placeholder="Название запчасти"
-                        className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs text-muted-foreground mb-1">Наименование</label>
+                        <input
+                          value={item.name}
+                          onChange={(e) => updateItem(idx, 'name', e.target.value)}
+                          placeholder="Название запчасти"
+                          className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-muted-foreground mb-1">Бренд</label>
+                        <input
+                          value={item.brand}
+                          onChange={(e) => updateItem(idx, 'brand', e.target.value)}
+                          placeholder="Производитель"
+                          className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div>
