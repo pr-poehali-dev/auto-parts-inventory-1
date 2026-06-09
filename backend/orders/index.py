@@ -202,8 +202,12 @@ def handler(event: dict, context) -> dict:
                 values.append(body['note'])
 
             if 'items' in body:
+                new_items = body['items']
+                new_total = sum(float(i.get('price', 0)) * int(i.get('quantity', 1)) for i in new_items)
                 fields.append('items = %s')
-                values.append(json.dumps(body['items'], ensure_ascii=False))
+                values.append(json.dumps(new_items, ensure_ascii=False))
+                fields.append('total = %s')
+                values.append(new_total)
 
             if fields:
                 values.append(order_id)

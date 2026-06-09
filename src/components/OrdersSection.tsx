@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
-import { ClientOrder, Client } from '@/data/mockData';
+import { ClientOrder, Client, OrderItem } from '@/data/mockData';
 import { getOrders, getClients, updateOrder } from '@/api';
 
 function clientName(c?: Client): string {
@@ -39,7 +39,11 @@ export default function OrdersSection() {
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [selectedItems, setSelectedItems] = useState<Record<string, Set<number>>>({});
   const [marginPopupId, setMarginPopupId] = useState<string | null>(null);
-  const [itemMarginPopup, setItemMarginPopup] = useState<string | null>(null); // `${orderId}-${itemIndex}`
+  const [itemMarginPopup, setItemMarginPopup] = useState<string | null>(null);
+  const [editingOrder, setEditingOrder] = useState<ClientOrder | null>(null);
+  const [editItems, setEditItems] = useState<OrderItem[]>([]);
+  const [editNote, setEditNote] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -65,6 +69,28 @@ export default function OrdersSection() {
       setClients(map);
     }).finally(() => setLoading(false));
   }, []);
+
+  const openEdit = (order: ClientOrder) => {
+    setEditingOrder(order);
+    setEditItems(order.items.map(i => ({ ...i })));
+    setEditNote(order.note ?? '');
+  };
+
+  const updateEditItem = (idx: number, field: keyof OrderItem, val: string | number) => {
+    setEditItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: val } : item));
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingOrder) return;
+    setSavingEdit(true);
+    try {
+      const updated = await updateOrder(editingOrder.id, { items: editItems, note: editNote });
+      setOrders(prev => prev.map(o => o.id === editingOrder.id ? { ...o, ...(updated as ClientOrder) } : o));
+      setEditingOrder(null);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     setUpdatingStatus(orderId);
@@ -478,7 +504,14 @@ export default function OrdersSection() {
                           })()}
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openEdit(order); }}
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded-md px-2 py-1 transition-colors"
+                          >
+                            <Icon name="Pencil" size={11} />
+                            Изменить
+                          </button>
                           <span className="text-xs text-muted-foreground">Статус:</span>
                           <select
                             value={order.status}
@@ -502,6 +535,109 @@ export default function OrdersSection() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Модал редактирования заказа */}
+      {editingOrder && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setEditingOrder(null)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg animate-slide-up max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border">
+              <div>
+                <h3 className="text-base font-semibold">Редактировать заказ</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">#{editingOrder.id.slice(0, 8)} · {clientName(clients[editingOrder.clientId])}</p>
+              </div>
+              <button onClick={() => setEditingOrder(null)} className="text-muted-foreground hover:text-foreground"><Icon name="X" size={18} /></button>
+            </div>
+
+            <div className="px-5 py-4 space-y-3">
+              {editItems.map((item, idx) => (
+                <div key={idx} className="border-2 border-border rounded-xl overflow-hidden">
+                  <div className="px-3 py-2 bg-muted/50 border-b border-border">
+                    <span className="text-xs font-semibold text-muted-foreground tracking-wide">ПОЗИЦИЯ {idx + 1}</span>
+                    {item.article && <span className="font-mono-data text-xs text-muted-foreground ml-2">{item.article}</span>}
+                    {item.name && <span className="text-xs text-foreground ml-2 font-medium">{item.name}</span>}
+                  </div>
+                  <div className="p-3 space-y-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-xs text-muted-foreground mb-1">Кол-во</label>
+                        <input type="number" min={1}
+                          value={item.quantity === 0 ? '' : item.quantity}
+                          onChange={(e) => updateEditItem(idx, 'quantity', e.target.value === '' ? 0 : +e.target.value)}
+                          className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-muted-foreground mb-1">Закупка, ₽</label>
+                        <input type="number" min={0}
+                          value={item.costPrice === 0 ? '' : item.costPrice}
+                          placeholder="0"
+                          onChange={(e) => updateEditItem(idx, 'costPrice', e.target.value === '' ? 0 : +e.target.value)}
+                          className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-muted-foreground mb-1">Продажа, ₽</label>
+                        <input type="number" min={0}
+                          value={item.price === 0 ? '' : item.price}
+                          onChange={(e) => updateEditItem(idx, 'price', e.target.value === '' ? 0 : +e.target.value)}
+                          className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
+                    </div>
+                    {item.quantity > 0 && item.price > 0 && (
+                      <div className="flex items-center justify-between text-xs text-muted-foreground bg-muted/40 px-2 py-1.5 rounded-md">
+                        <span>Итого: <span className="font-mono-data font-medium text-foreground">{(item.quantity * item.price).toLocaleString('ru')} ₽</span></span>
+                        {(item.costPrice ?? 0) > 0 && (
+                          <span>Маржа: <span className={`font-mono-data font-medium ${item.price - (item.costPrice ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {((item.price - (item.costPrice ?? 0)) * item.quantity).toLocaleString('ru')} ₽
+                          </span></span>
+                        )}
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">Примечание к позиции</label>
+                      <input
+                        value={item.note ?? ''}
+                        onChange={(e) => updateEditItem(idx, 'note', e.target.value)}
+                        placeholder="Доп. информация..."
+                        className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Примечание к заказу</label>
+                <textarea value={editNote} onChange={(e) => setEditNote(e.target.value)} rows={2}
+                  className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
+              </div>
+
+              {editItems.length > 0 && (
+                <div className="border border-border rounded-lg p-3 bg-muted/20">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Итого продажа:</span>
+                    <span className="font-mono-data font-semibold">
+                      {editItems.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString('ru')} ₽
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 px-5 pb-5">
+              <button onClick={() => setEditingOrder(null)}
+                className="flex-1 px-4 py-2 border border-border rounded-md text-sm hover:bg-muted transition-colors">
+                Отмена
+              </button>
+              <button onClick={handleSaveEdit} disabled={savingEdit}
+                className="flex-1 px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:bg-foreground/80 disabled:opacity-50 transition-colors">
+                {savingEdit ? 'Сохранение...' : 'Сохранить'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
