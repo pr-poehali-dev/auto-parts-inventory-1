@@ -68,3 +68,21 @@ export const authLogout = (token: string) =>
   authReq(`${AUTH_URL}?action=logout`, 'POST', undefined, token);
 export const authUpdate = (token: string, data: { name?: string; phone?: string; password?: string; oldPassword?: string }) =>
   authReq(`${AUTH_URL}?action=update`, 'POST', data, token);
+
+// ── ADMIN ───────────────────────────────────────────────
+const ADMIN_URL = (func2url as Record<string, string>)['admin'];
+function adminReq(url: string, method = 'GET', body?: unknown, token?: string) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['X-Session-Token'] = token;
+  return fetch(url, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined })
+    .then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка');
+      return data;
+    });
+}
+export const adminGetStats = (token: string) => adminReq(`${ADMIN_URL}?action=stats`, 'GET', undefined, token);
+export const adminGetUsers = (token: string) => adminReq(`${ADMIN_URL}?action=users`, 'GET', undefined, token);
+export const adminToggleUser = (token: string, userId: string) => adminReq(`${ADMIN_URL}?action=toggle_user`, 'POST', { userId }, token);
+export const adminGetOrders = (token: string, limit = 50) => adminReq(`${ADMIN_URL}?action=orders&limit=${limit}`, 'GET', undefined, token);
+export const adminGetDbInfo = (token: string) => adminReq(`${ADMIN_URL}?action=dbinfo`, 'GET', undefined, token);

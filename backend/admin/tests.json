@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "GET stats — no token returns 403",
+      "method": "GET",
+      "path": "/?action=stats",
+      "expectedStatus": 403,
+      "bodyMatcher": "partial",
+      "expectedBody": {"error": "string"}
+    }
+  ]
+}
