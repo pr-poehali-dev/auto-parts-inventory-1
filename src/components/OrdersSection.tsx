@@ -487,6 +487,7 @@ export default function OrdersSection() {
                               <div className="flex-1 min-w-0">
                                 <span className="font-medium truncate block">{item.name || item.article}</span>
                                 {item.brand && <div className="text-xs text-muted-foreground mt-0.5">{item.brand}</div>}
+                                {item.note && <div className="text-xs text-muted-foreground italic mt-0.5">{item.note}</div>}
                               </div>
                               <div className="flex items-center gap-3 shrink-0">
                                 <span className={`hidden sm:inline-flex px-2 py-0.5 rounded-full text-xs border ${stInfo.cls}`}>
