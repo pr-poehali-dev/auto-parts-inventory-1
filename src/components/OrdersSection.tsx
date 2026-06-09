@@ -45,6 +45,8 @@ export default function OrdersSection() {
   const [editItems, setEditItems] = useState<OrderItem[]>([]);
   const [editNote, setEditNote] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteVal, setEditingNoteVal] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -145,6 +147,12 @@ export default function OrdersSection() {
     } else {
       await updateOrder(orderId, { items: newItems });
     }
+  };
+
+  const saveNote = async (orderId: string) => {
+    await updateOrder(orderId, { note: editingNoteVal });
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, note: editingNoteVal } : o));
+    setEditingNoteId(null);
   };
 
   const q = search.toLowerCase().trim();
@@ -382,8 +390,25 @@ export default function OrdersSection() {
                       {st.label}
                     </span>
                   </div>
-                  {order.note && (
-                    <div className="mt-1.5 text-xs text-muted-foreground italic truncate">{order.note}</div>
+                  {editingNoteId === order.id ? (
+                    <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        autoFocus
+                        value={editingNoteVal}
+                        onChange={(e) => setEditingNoteVal(e.target.value)}
+                        onBlur={() => saveNote(order.id)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') saveNote(order.id); if (e.key === 'Escape') setEditingNoteId(null); }}
+                        placeholder="Примечание..."
+                        className="w-full text-xs px-2 py-1 border border-primary rounded outline-none bg-white"
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      className="mt-1.5 text-xs text-muted-foreground italic truncate cursor-pointer hover:text-foreground transition-colors"
+                      onClick={(e) => { e.stopPropagation(); setEditingNoteId(order.id); setEditingNoteVal(order.note ?? ''); }}
+                    >
+                      {order.note || <span className="opacity-40">+ примечание</span>}
+                    </div>
                   )}
                 </div>
 
