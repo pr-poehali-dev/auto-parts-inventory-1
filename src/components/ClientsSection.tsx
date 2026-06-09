@@ -189,9 +189,34 @@ export default function ClientsSection() {
         </button>
       </div>
 
-      {/* Мобильные группы */}
+      {/* Мобильные группы + сортировка */}
       <div className="md:hidden overflow-x-auto pb-1 -mx-1 px-1">
         <div className="flex gap-2 min-w-max">
+          {([
+            { id: 'name', label: 'А→Я', icon: 'ArrowUpAZ' },
+            { id: 'date', label: 'Дата', icon: 'Calendar' },
+            { id: 'orders', label: 'Заказы', icon: 'ShoppingCart' },
+            { id: 'spent', label: 'Сумма', icon: 'TrendingUp' },
+          ] as const).map((s) => (
+            <button
+              key={s.id}
+              onClick={() => toggleSort(s.id)}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all shrink-0 ${
+                sortBy === s.id
+                  ? 'bg-foreground text-background border-foreground'
+                  : 'bg-white text-muted-foreground border-border'
+              }`}
+            >
+              <Icon name={s.icon as 'Calendar'} size={11} />
+              {s.label}
+              {sortBy === s.id && (
+                <Icon name={sortDir === 'asc' ? 'ArrowUp' : 'ArrowDown'} size={10} />
+              )}
+            </button>
+          ))}
+          <div className="w-px bg-border self-stretch mx-1" />
+        </div>
+        <div className="flex gap-2 min-w-max mt-2">
           {([
             { id: 'all', label: 'Все' },
             { id: 'new', label: 'Новые' },
