@@ -65,8 +65,15 @@ export default function Index() {
 
   const { title, subtitle } = PAGE_TITLES[activeTab];
 
+  const pageBg: Record<string, string> = {
+    search: 'bg-page-search',
+    clients: 'bg-page-clients',
+    orders: 'bg-page-orders',
+    stock: 'bg-page-stock',
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen bg-background ${pageBg[activeTab] ?? ''}`}>
       <header className="bg-white border-b border-border sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex items-center justify-between h-14 gap-3">
