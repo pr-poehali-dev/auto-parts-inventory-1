@@ -10,5 +10,10 @@ Allow: /
 User-agent: facebookexternalhit
 Allow: /
 
+User-agent: YandexBot
+Allow: /
+
 User-agent: *
 Allow: /
+
+Sitemap: https://partkeeper.pro/sitemap.xml
