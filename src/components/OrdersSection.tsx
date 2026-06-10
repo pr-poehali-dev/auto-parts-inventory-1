@@ -902,9 +902,10 @@ export default function OrdersSection() {
       {/* Мини-карточка клиента */}
       {clientPopup && (() => {
         const c = clientPopup;
-        const clientOrders = orders.filter((o) => o.clientId === c.id && o.status !== 'cancelled');
-        const totalSpent = clientOrders.reduce((s, o) => s + o.total, 0);
-        const activeCount = clientOrders.filter((o) => ['new', 'ordered', 'in_stock'].includes(o.status)).length;
+        const activeOrders = orders.filter((o) => o.clientId === c.id && ['new', 'ordered', 'in_stock'].includes(o.status));
+        const inWork = activeOrders.reduce((s, o) => s + o.total, 0);
+        const debt = inWork - c.balance;
+        const hasDebt = debt > 0;
         return (
           <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px] flex items-start justify-center z-50 pt-20 px-4" onClick={() => setClientPopup(null)}>
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm animate-slide-up" onClick={(e) => e.stopPropagation()}>
@@ -921,26 +922,45 @@ export default function OrdersSection() {
                 <button onClick={() => setClientPopup(null)} className="text-muted-foreground hover:text-foreground mt-0.5"><Icon name="X" size={18} /></button>
               </div>
               <div className="px-5 pb-5 space-y-2">
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="rounded-lg bg-muted/40 px-3 py-2.5 text-center">
-                    <div className={`text-base font-semibold font-mono-data ${c.balance < 0 ? 'text-red-500' : c.balance > 0 ? 'text-emerald-600' : 'text-foreground'}`}>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-muted/40 px-3 py-2.5">
+                    <div className="text-xs text-muted-foreground mb-0.5">Баланс</div>
+                    <div className={`text-base font-semibold font-mono-data ${c.balance > 0 ? 'text-emerald-600' : c.balance < 0 ? 'text-red-500' : 'text-foreground'}`}>
                       {c.balance >= 0 ? '+' : ''}{c.balance.toLocaleString('ru')} ₽
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">Баланс</div>
                   </div>
-                  <div className="rounded-lg bg-muted/40 px-3 py-2.5 text-center">
-                    <div className="text-base font-semibold font-mono-data">{activeCount}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">Активных</div>
-                  </div>
-                  <div className="rounded-lg bg-muted/40 px-3 py-2.5 text-center">
-                    <div className="text-base font-semibold font-mono-data">{totalSpent > 0 ? `${totalSpent.toLocaleString('ru')} ₽` : '—'}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">Куплено</div>
+                  <div className="rounded-lg bg-muted/40 px-3 py-2.5">
+                    <div className="text-xs text-muted-foreground mb-0.5">В работе</div>
+                    <div className="text-base font-semibold font-mono-data text-amber-600">
+                      {inWork > 0 ? `${inWork.toLocaleString('ru')} ₽` : '—'}
+                    </div>
                   </div>
                 </div>
-                {c.balance < 0 && (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg text-xs text-red-600">
-                    <Icon name="AlertTriangle" size={13} />
-                    Задолженность {Math.abs(c.balance).toLocaleString('ru')} ₽
+                {hasDebt && (
+                  <div className="flex items-center justify-between px-3 py-2 bg-red-50 border border-red-100 rounded-lg">
+                    <div className="flex items-center gap-2 text-red-600">
+                      <Icon name="AlertTriangle" size={13} />
+                      <span className="text-xs font-medium">Долг по заказам</span>
+                    </div>
+                    <span className="font-mono-data font-semibold text-sm text-red-600">−{debt.toLocaleString('ru')} ₽</span>
+                  </div>
+                )}
+                {!hasDebt && inWork > 0 && (
+                  <div className="flex items-center justify-between px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-lg">
+                    <div className="flex items-center gap-2 text-emerald-600">
+                      <Icon name="CheckCircle" size={13} />
+                      <span className="text-xs font-medium">Заказы оплачены</span>
+                    </div>
+                    <span className="font-mono-data font-semibold text-sm text-emerald-600">+{(c.balance - inWork).toLocaleString('ru')} ₽ сверх</span>
+                  </div>
+                )}
+                {inWork === 0 && c.balance > 0 && (
+                  <div className="flex items-center justify-between px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-lg">
+                    <div className="flex items-center gap-2 text-emerald-600">
+                      <Icon name="Wallet" size={13} />
+                      <span className="text-xs font-medium">Свободный баланс</span>
+                    </div>
+                    <span className="font-mono-data font-semibold text-sm text-emerald-600">+{c.balance.toLocaleString('ru')} ₽</span>
                   </div>
                 )}
               </div>

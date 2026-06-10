@@ -529,23 +529,45 @@ export default function ClientCard({ client, onBack }: Props) {
           {(() => {
             const activeOrders = orders.filter((o) => !['cancelled', 'issued'].includes(o.status));
             const inWork = activeOrders.reduce((sum, o) => sum + o.total, 0);
-            const deposited = balanceHistory.filter((e) => e.amount > 0).reduce((sum, e) => sum + e.amount, 0);
+            const deposited = balanceHistory.filter((e) => ['add', 'prepaid', 'refund'].includes(e.type)).reduce((sum, e) => sum + e.amount, 0);
+            const debt = inWork - balance;
+            const hasDebt = debt > 0;
             return (
-              <div className="grid grid-cols-3 gap-2 mb-3">
-                <div className="bg-muted/40 rounded-lg px-3 py-2">
-                  <div className="text-xs text-muted-foreground mb-0.5">Внесено</div>
-                  <div className="font-mono-data font-semibold text-sm text-emerald-600">{deposited.toLocaleString()} ₽</div>
-                </div>
-                <div className="bg-muted/40 rounded-lg px-3 py-2">
-                  <div className="text-xs text-muted-foreground mb-0.5">В работе</div>
-                  <div className="font-mono-data font-semibold text-sm text-amber-600">{inWork.toLocaleString()} ₽</div>
-                </div>
-                <div className="bg-muted/40 rounded-lg px-3 py-2">
-                  <div className="text-xs text-muted-foreground mb-0.5">Задолженность</div>
-                  <div className={`font-mono-data font-semibold text-sm ${balance > 0 ? 'text-emerald-600' : balance < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
-                    {balance > 0 ? '+' : ''}{balance.toLocaleString()} ₽
+              <div className="space-y-2 mb-3">
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-muted/40 rounded-lg px-3 py-2">
+                    <div className="text-xs text-muted-foreground mb-0.5">Внесено</div>
+                    <div className="font-mono-data font-semibold text-sm text-emerald-600">{deposited.toLocaleString()} ₽</div>
+                  </div>
+                  <div className="bg-muted/40 rounded-lg px-3 py-2">
+                    <div className="text-xs text-muted-foreground mb-0.5">В работе</div>
+                    <div className="font-mono-data font-semibold text-sm text-amber-600">{inWork.toLocaleString()} ₽</div>
+                  </div>
+                  <div className="bg-muted/40 rounded-lg px-3 py-2">
+                    <div className="text-xs text-muted-foreground mb-0.5">Баланс</div>
+                    <div className={`font-mono-data font-semibold text-sm ${balance > 0 ? 'text-emerald-600' : balance < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                      {balance > 0 ? '+' : ''}{balance.toLocaleString()} ₽
+                    </div>
                   </div>
                 </div>
+                {hasDebt && (
+                  <div className="flex items-center justify-between px-3 py-2 bg-red-50 border border-red-100 rounded-lg">
+                    <div className="flex items-center gap-2 text-red-600">
+                      <Icon name="AlertTriangle" size={13} />
+                      <span className="text-xs font-medium">Долг по заказам</span>
+                    </div>
+                    <span className="font-mono-data font-semibold text-sm text-red-600">−{debt.toLocaleString()} ₽</span>
+                  </div>
+                )}
+                {!hasDebt && inWork > 0 && (
+                  <div className="flex items-center justify-between px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-lg">
+                    <div className="flex items-center gap-2 text-emerald-600">
+                      <Icon name="CheckCircle" size={13} />
+                      <span className="text-xs font-medium">Заказы оплачены</span>
+                    </div>
+                    <span className="font-mono-data font-semibold text-sm text-emerald-600">+{(balance - inWork).toLocaleString()} ₽ сверх</span>
+                  </div>
+                )}
               </div>
             );
           })()}
