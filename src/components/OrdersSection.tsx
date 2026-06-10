@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { ClientOrder, Client, OrderItem } from '@/data/mockData';
 import { getOrders, getClients, updateOrder, deleteOrder } from '@/api';
+import InvoiceModal from '@/components/InvoiceModal';
 
 function clientName(c?: Client): string {
   if (!c) return '—';
@@ -52,6 +53,48 @@ export default function OrdersSection() {
   const [clientPopup, setClientPopup] = useState<Client | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+  const [invoiceOrders, setInvoiceOrders] = useState<ClientOrder[] | null>(null);
+  const [bulkWorking, setBulkWorking] = useState(false);
+
+  const toggleSelectOrder = (orderId: string) => {
+    setSelectedOrders(prev => {
+      const next = new Set(prev);
+      if (next.has(orderId)) next.delete(orderId);
+      else next.add(orderId);
+      return next;
+    });
+  };
+
+  const selectedList = orders.filter(o => selectedOrders.has(o.id));
+  const selectedClientIds = [...new Set(selectedList.map(o => o.clientId))];
+  const singleClient = selectedClientIds.length === 1;
+
+  const handleBulkDelete = async () => {
+    setBulkWorking(true);
+    for (const id of [...selectedOrders]) {
+      await deleteOrder(id);
+    }
+    setOrders(prev => prev.filter(o => !selectedOrders.has(o.id)));
+    setSelectedOrders(new Set());
+    setBulkWorking(false);
+  };
+
+  const handleBulkIssue = () => {
+    setInvoiceOrders(selectedList);
+  };
+
+  const confirmIssue = async () => {
+    if (!invoiceOrders) return;
+    setBulkWorking(true);
+    for (const o of invoiceOrders) {
+      await updateOrder(o.id, { status: 'issued' });
+    }
+    setOrders(prev => prev.map(o => invoiceOrders.find(io => io.id === o.id) ? { ...o, status: 'issued' } : o));
+    setSelectedOrders(new Set());
+    setInvoiceOrders(null);
+    setBulkWorking(false);
+  };
 
   const handleDelete = async (orderId: string) => {
     setDeleting(true);
@@ -329,8 +372,48 @@ export default function OrdersSection() {
         </div>
       ) : (
         <div className="border border-border rounded-xl overflow-hidden bg-white">
+          {/* Панель выбора */}
+          {selectedOrders.size > 0 && (
+            <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/5 border-b border-primary/20 flex-wrap">
+              <span className="text-xs font-medium text-foreground">
+                Выбрано: {selectedOrders.size}
+              </span>
+              <div className="flex items-center gap-2 ml-auto">
+                {singleClient && (
+                  <button
+                    onClick={handleBulkIssue}
+                    disabled={bulkWorking}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50"
+                  >
+                    <Icon name="PackageCheck" size={13} />
+                    Выдать
+                  </button>
+                )}
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={bulkWorking}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50"
+                >
+                  <Icon name="Trash2" size={13} />
+                  {bulkWorking ? 'Удаляем...' : 'Удалить'}
+                </button>
+                <button
+                  onClick={() => setSelectedOrders(new Set())}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Отмена
+                </button>
+              </div>
+              {!singleClient && selectedClientIds.length > 1 && (
+                <span className="w-full text-xs text-amber-600">
+                  Выбраны заказы разных клиентов — выдача недоступна
+                </span>
+              )}
+            </div>
+          )}
           {/* Шапка таблицы */}
-          <div className="hidden md:grid grid-cols-[1fr_1.4fr_1fr_1fr_0.8fr_0.9fr] gap-3 px-4 py-2.5 bg-muted/40 border-b border-border text-xs text-muted-foreground font-medium">
+          <div className="hidden md:grid grid-cols-[28px_1fr_1.4fr_1fr_1fr_0.8fr_0.9fr] gap-3 px-4 py-2.5 bg-muted/40 border-b border-border text-xs text-muted-foreground font-medium">
+            <span></span>
             <span>Дата</span>
             <span>Клиент</span>
             <span>Статус</span>
@@ -362,13 +445,23 @@ export default function OrdersSection() {
               ? Math.round(margin / order.total * 100)
               : null;
 
+            const isSelected = selectedOrders.has(order.id);
+
             return (
-              <div key={order.id} className={idx > 0 ? 'border-t border-border' : ''}>
+              <div key={order.id} className={`${idx > 0 ? 'border-t border-border' : ''} ${isSelected ? 'bg-primary/5' : ''}`}>
                 {/* Desktop строка */}
                 <div
-                  className="hidden md:grid grid-cols-[1fr_1.4fr_1fr_1fr_0.8fr_0.9fr] gap-3 px-4 py-3 hover:bg-muted/20 cursor-pointer transition-colors items-center"
+                  className="hidden md:grid grid-cols-[28px_1fr_1.4fr_1fr_1fr_0.8fr_0.9fr] gap-3 px-4 py-3 hover:bg-muted/20 cursor-pointer transition-colors items-center"
                   onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
                 >
+                  <div onClick={e => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelectOrder(order.id)}
+                      className="w-4 h-4 rounded accent-primary cursor-pointer"
+                    />
+                  </div>
                   <div>
                     <div className="text-sm font-medium">{fmtDate(order.date)}</div>
                     <div className="text-xs text-muted-foreground">
@@ -452,14 +545,24 @@ export default function OrdersSection() {
                   onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); if (client) setClientPopup(client); }}
-                        className="text-sm font-semibold hover:underline text-left"
-                      >
-                        {clientName(client)}
-                      </button>
-                      {client?.phone && <div className="text-xs text-muted-foreground">{client.phone}</div>}
+                    <div className="flex items-start gap-2">
+                      <div onClick={e => { e.stopPropagation(); toggleSelectOrder(order.id); }} className="pt-0.5">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {}}
+                          className="w-4 h-4 rounded accent-primary cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); if (client) setClientPopup(client); }}
+                          className="text-sm font-semibold hover:underline text-left"
+                        >
+                          {clientName(client)}
+                        </button>
+                        {client?.phone && <div className="text-xs text-muted-foreground">{client.phone}</div>}
+                      </div>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <div className="text-right">
@@ -1020,6 +1123,17 @@ export default function OrdersSection() {
           </div>
         );
       })()}
+
+      {/* Товарная накладная */}
+      {invoiceOrders && (
+        <InvoiceModal
+          orders={invoiceOrders}
+          client={clients[invoiceOrders[0]?.clientId]}
+          onConfirm={confirmIssue}
+          onClose={() => setInvoiceOrders(null)}
+          loading={bulkWorking}
+        />
+      )}
     </div>
   );
 }
