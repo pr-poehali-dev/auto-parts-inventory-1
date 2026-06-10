@@ -345,6 +345,11 @@ export default function OrdersSection() {
             const st = STATUS_MAP[order.status] ?? STATUS_MAP['new'];
             const balance = order.clientBalance ?? 0;
             const isFirstForClient = displayed.findIndex(o => o.clientId === order.clientId) === idx;
+            const clientActiveTotal = orders
+              .filter(o => o.clientId === order.clientId && ['new', 'ordered', 'in_stock'].includes(o.status))
+              .reduce((s, o) => s + o.total, 0);
+            const clientDebt = clientActiveTotal - balance;
+            const hasClientDebt = isFirstForClient && clientDebt > 0;
             const isPaid = isFirstForClient && balance >= 0;
             const isDebt = isFirstForClient && balance < 0;
             const firstName = order.items[0];
@@ -431,7 +436,12 @@ export default function OrdersSection() {
                     )}
                   </div>
                   <div className="flex items-center gap-1.5">
-                    {isDebt && <span className="text-xs text-red-500 font-medium">{balance.toLocaleString('ru')} ₽</span>}
+                    {hasClientDebt && (
+                      <span className="inline-flex items-center gap-1 text-xs text-red-500 font-medium bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
+                        <Icon name="AlertTriangle" size={10} />
+                        −{clientDebt.toLocaleString('ru')} ₽
+                      </span>
+                    )}
                     <Icon name={isExpanded ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground ml-auto" />
                   </div>
                 </div>
@@ -459,7 +469,12 @@ export default function OrdersSection() {
                             {margin >= 0 ? '+' : ''}{margin.toLocaleString('ru')} ₽{marginPct !== null && ` (${marginPct}%)`}
                           </div>
                         )}
-                        {isDebt && <div className="text-xs text-red-500">{balance.toLocaleString('ru')} ₽</div>}
+                        {hasClientDebt && (
+                          <div className="inline-flex items-center gap-1 text-xs text-red-500 font-medium bg-red-50 border border-red-200 rounded-full px-2 py-0.5 mt-0.5">
+                            <Icon name="AlertTriangle" size={9} />
+                            −{clientDebt.toLocaleString('ru')} ₽
+                          </div>
+                        )}
                       </div>
                       <Icon name={isExpanded ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground" />
                     </div>
