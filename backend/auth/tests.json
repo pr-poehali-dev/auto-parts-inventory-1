@@ -6,6 +6,14 @@
       "path": "/",
       "expectedStatus": 200,
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "GET company settings",
+      "method": "GET",
+      "path": "/?action=company",
+      "expectedStatus": 200,
+      "expectedBody": {"name": ""},
+      "bodyMatcher": "partial"
     }
   ]
 }

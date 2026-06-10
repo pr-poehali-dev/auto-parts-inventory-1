@@ -1,6 +1,7 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { ClientOrder, Client, OrderItem } from '@/data/mockData';
+import { getCompanySettings } from '@/api';
 
 interface Props {
   orders: ClientOrder[];
@@ -8,6 +9,10 @@ interface Props {
   onConfirm: () => void;
   onClose: () => void;
   loading?: boolean;
+}
+
+interface CompanySettings {
+  name: string; inn: string; ogrn: string; address: string; phone: string; email: string;
 }
 
 function clientName(c?: Client): string {
@@ -19,6 +24,11 @@ function clientName(c?: Client): string {
 
 export default function InvoiceModal({ orders, client, onConfirm, onClose, loading }: Props) {
   const printRef = useRef<HTMLDivElement>(null);
+  const [company, setCompany] = useState<CompanySettings>({ name: '', inn: '', ogrn: '', address: '', phone: '', email: '' });
+
+  useEffect(() => {
+    getCompanySettings().then((d: Record<string, string>) => setCompany(c => ({ ...c, ...d }))).catch(() => {});
+  }, []);
 
   const allItems: (OrderItem & { orderNum: string })[] = orders.flatMap(o =>
     o.items.map(item => ({ ...item, orderNum: o.id.slice(0, 8) }))
@@ -70,10 +80,27 @@ export default function InvoiceModal({ orders, client, onConfirm, onClose, loadi
         {/* Контент накладной */}
         <div className="overflow-y-auto flex-1 px-5 py-4">
           <div ref={printRef}>
-            <h2 style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 4 }}>Товарная накладная</h2>
-            <p style={{ fontSize: 12, color: '#555', marginBottom: 16 }}>
-              Клиент: {clientName(client)}{client?.phone ? ` · ${client.phone}` : ''} · Дата: {today}
-            </p>
+            {/* Шапка: продавец + покупатель */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, gap: 16 }}>
+              <div style={{ flex: 1 }}>
+                {company.name && <div style={{ fontWeight: 'bold', fontSize: 14, marginBottom: 4 }}>{company.name}</div>}
+                {company.inn && <div style={{ fontSize: 12, color: '#555' }}>ИНН: {company.inn}</div>}
+                {company.ogrn && <div style={{ fontSize: 12, color: '#555' }}>ОГРН: {company.ogrn}</div>}
+                {company.address && <div style={{ fontSize: 12, color: '#555' }}>{company.address}</div>}
+                {company.phone && <div style={{ fontSize: 12, color: '#555' }}>Тел: {company.phone}</div>}
+                {!company.name && !company.inn && (
+                  <div style={{ fontSize: 12, color: '#aaa', fontStyle: 'italic' }}>Реквизиты не заполнены</div>
+                )}
+              </div>
+              <div style={{ flex: 1, textAlign: 'right' }}>
+                <div style={{ fontWeight: 'bold', fontSize: 14, marginBottom: 4 }}>Покупатель</div>
+                <div style={{ fontSize: 12, color: '#555' }}>{clientName(client)}</div>
+                {client?.phone && <div style={{ fontSize: 12, color: '#555' }}>{client.phone}</div>}
+              </div>
+            </div>
+            <h2 style={{ fontSize: 15, fontWeight: 'bold', marginBottom: 4, borderTop: '1px solid #eee', paddingTop: 12 }}>
+              Товарная накладная · {today}
+            </h2>
 
             <table className="w-full text-sm border-collapse">
               <thead>

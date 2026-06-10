@@ -260,6 +260,39 @@ def handler(event: dict, context) -> dict:
                 return resp(200, {'user': {'id': str(upd[0]), 'email': str(upd[1]), 'phone': str(upd[2] or ''), 'name': str(upd[3] or '')}})
             return resp(400, {'error': 'Нет данных для обновления'})
 
+        # ── GET COMPANY SETTINGS ──────────────────────────────
+        if method == 'GET' and action == 'company':
+            cur.execute(f"SELECT key, value FROM {SCHEMA}.company_settings")
+            rows = cur.fetchall()
+            return resp(200, {r[0]: (r[1] or '') for r in rows})
+
+        # ── SAVE COMPANY SETTINGS ─────────────────────────────
+        if method == 'POST' and action == 'company':
+            token_hdr = (event.get('headers') or {}).get('X-Session-Token', '')
+            if not token_hdr:
+                return resp(401, {'error': 'Не авторизован'})
+            now = datetime.now(timezone.utc)
+            cur.execute(f"""
+                SELECT u.id FROM {SCHEMA}.sessions s
+                JOIN {SCHEMA}.users u ON u.id = s.user_id
+                WHERE s.token = %s AND s.expires_at > %s AND u.is_active = TRUE
+            """, (token_hdr, now))
+            if not cur.fetchone():
+                return resp(401, {'error': 'Сессия истекла'})
+
+            allowed = ['name', 'inn', 'ogrn', 'address', 'phone', 'email']
+            for key in allowed:
+                if key in body:
+                    cur.execute(f"""
+                        INSERT INTO {SCHEMA}.company_settings (key, value)
+                        VALUES (%s, %s)
+                        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+                    """, (key, (body[key] or '').strip()))
+            conn.commit()
+            cur.execute(f"SELECT key, value FROM {SCHEMA}.company_settings")
+            rows = cur.fetchall()
+            return resp(200, {r[0]: (r[1] or '') for r in rows})
+
         # ── LOGOUT ────────────────────────────────────────────
         if method == 'POST' and action == 'logout':
             token = (event.get('headers') or {}).get('X-Session-Token', '')
