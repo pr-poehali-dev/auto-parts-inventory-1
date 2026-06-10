@@ -231,6 +231,19 @@ def handler(event: dict, context) -> dict:
                 return resp(200, row_to_order(cols, row))
             return resp(400, {'error': 'Нет полей'})
 
+        # DELETE заказ
+        if method == 'DELETE' and order_id:
+            cur.execute(f"SELECT client_id, total, status FROM {SCHEMA}.client_orders WHERE id = %s", (order_id,))
+            row = cur.fetchone()
+            if not row:
+                return resp(404, {'error': 'Заказ не найден'})
+            client_id_del, total_del, status_del = row[0], float(row[1]), row[2]
+            cur.execute(f"DELETE FROM {SCHEMA}.balance_entries WHERE order_id = %s", (order_id,))
+            cur.execute(f"DELETE FROM {SCHEMA}.client_orders WHERE id = %s", (order_id,))
+            cur.execute(f"UPDATE {SCHEMA}.clients SET total_orders = GREATEST(total_orders - 1, 0) WHERE id = %s", (client_id_del,))
+            conn.commit()
+            return resp(200, {'ok': True})
+
         return resp(405, {'error': 'Метод не поддерживается'})
 
     finally:

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { ClientOrder, Client, OrderItem } from '@/data/mockData';
-import { getOrders, getClients, updateOrder } from '@/api';
+import { getOrders, getClients, updateOrder, deleteOrder } from '@/api';
 
 function clientName(c?: Client): string {
   if (!c) return '—';
@@ -50,6 +50,17 @@ export default function OrdersSection() {
   const [cellPopup, setCellPopup] = useState<{ orderId: string; cells: Record<number, string> } | null>(null);
   const [editingCell, setEditingCell] = useState<{ orderId: string; itemIdx: number; val: string } | null>(null);
   const [clientPopup, setClientPopup] = useState<Client | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async (orderId: string) => {
+    setDeleting(true);
+    await deleteOrder(orderId);
+    setOrders((prev) => prev.filter((o) => o.id !== orderId));
+    setConfirmDelete(null);
+    setExpandedOrder(null);
+    setDeleting(false);
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -695,6 +706,32 @@ export default function OrdersSection() {
                             <Icon name="Pencil" size={11} />
                             Изменить
                           </button>
+                          {confirmDelete === order.id ? (
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-red-600">Удалить заказ?</span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDelete(order.id); }}
+                                disabled={deleting}
+                                className="text-xs text-white bg-red-500 hover:bg-red-600 rounded px-2 py-0.5 transition-colors disabled:opacity-50"
+                              >
+                                {deleting ? '...' : 'Да'}
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }}
+                                className="text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
+                              >
+                                Нет
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setConfirmDelete(order.id); }}
+                              className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 border border-red-200 hover:border-red-400 rounded-md px-2 py-1 transition-colors"
+                            >
+                              <Icon name="Trash2" size={11} />
+                              Удалить
+                            </button>
+                          )}
                           <span className="text-xs text-muted-foreground">Статус:</span>
                           <select
                             value={order.status}
