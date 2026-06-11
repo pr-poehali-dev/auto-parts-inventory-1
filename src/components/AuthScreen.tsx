@@ -107,7 +107,7 @@ export default function AuthScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-muted/40 flex flex-col items-center justify-center p-4 gap-10">
       <div className="w-full max-w-sm">
         {/* Логотип */}
         <div className="flex items-center gap-2 justify-center mb-8">
@@ -252,6 +252,25 @@ export default function AuthScreen() {
               </button>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* SEO-блок: текст для поисковиков */}
+      <div className="w-full max-w-2xl text-center px-4 pb-8">
+        <h2 className="text-base font-semibold text-foreground mb-3">
+          Программа учёта заказов и склада для магазина автозапчастей
+        </h2>
+        <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+          PartKeeper — простая CRM-система для магазинов автозапчастей. Ведите учёт заказов клиентов,
+          контролируйте остатки на складе, считайте маржу и прибыль по каждой продаже.
+          Работает онлайн — без установки, без 1С.
+        </p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {['Учёт заказов', 'Складской учёт', 'База клиентов', 'Долги и балансы', 'Аналитика и маржа', 'Работает онлайн'].map(tag => (
+            <span key={tag} className="text-xs px-3 py-1 rounded-full bg-white border border-border text-muted-foreground">
+              {tag}
+            </span>
+          ))}
         </div>
       </div>
     </div>
