@@ -1,11 +1,20 @@
 import json
 import os
 import hashlib
+import time
 import urllib.request
 import psycopg2
 from datetime import date, timedelta, datetime, timezone
 
 SCHEMA = 't_p26023881_auto_parts_inventory'
+ADMIN_PHONE = '+79680066666'
+
+PLANS = {
+    1:  {'days': 30,  'amount': 65000,  'label': '1 месяц'},
+    3:  {'days': 90,  'amount': 175500, 'label': '3 месяца'},
+    6:  {'days': 180, 'amount': 331500, 'label': '6 месяцев'},
+    12: {'days': 365, 'amount': 624000, 'label': '1 год'},
+}
 
 def get_conn():
     return psycopg2.connect(os.environ['DATABASE_URL'])
@@ -33,15 +42,28 @@ def tbank_sign(params: dict, secret_key: str) -> str:
 def get_user_by_token(cur, token: str):
     now = datetime.now(timezone.utc)
     cur.execute(f"""
-        SELECT u.id, u.email, u.name, u.paid_until, u.free_until, u.is_admin
+        SELECT u.id, u.email, u.name, u.paid_until, u.free_until, u.is_admin, u.phone
         FROM {SCHEMA}.sessions s
         JOIN {SCHEMA}.users u ON u.id = s.user_id
         WHERE s.token = %s AND s.expires_at > %s AND u.is_active = TRUE
     """, (token, now))
     return cur.fetchone()
 
+def extend_subscription(cur, conn, user_id: str, days: int):
+    cur.execute(f"SELECT paid_until FROM {SCHEMA}.users WHERE id = %s", (user_id,))
+    row = cur.fetchone()
+    if not row:
+        return None
+    today = date.today()
+    current_paid = row[0]
+    base = current_paid if (current_paid and current_paid >= today) else today
+    new_paid_until = base + timedelta(days=days)
+    cur.execute(f"UPDATE {SCHEMA}.users SET paid_until = %s WHERE id = %s", (new_paid_until, user_id))
+    conn.commit()
+    return new_paid_until
+
 def handler(event: dict, context) -> dict:
-    """Платежи Т-Банк: создание платежа, webhook, статус подписки"""
+    """Платежи Т-Банк: создание платежа, webhook, статус подписки, продление из админки"""
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': cors_headers(), 'body': ''}
 
@@ -69,17 +91,10 @@ def handler(event: dict, context) -> dict:
         is_admin = row[5]
         today = date.today()
 
-        if is_admin:
-            active = True
-        elif free_until and free_until >= today:
-            active = True
-        elif paid_until and paid_until >= today:
-            active = True
-        else:
-            active = False
+        active = is_admin or (free_until and free_until >= today) or (paid_until and paid_until >= today)
 
         return resp(200, {
-            'active': active,
+            'active': bool(active),
             'paid_until': str(paid_until) if paid_until else None,
             'free_until': str(free_until) if free_until else None,
             'is_admin': is_admin,
@@ -91,6 +106,10 @@ def handler(event: dict, context) -> dict:
         if not token:
             return resp(401, {'error': 'Не авторизован'})
 
+        body = json.loads(event.get('body') or '{}')
+        months = int(body.get('months', 1))
+        plan = PLANS.get(months, PLANS[1])
+
         conn = get_conn()
         cur = conn.cursor()
         row = get_user_by_token(cur, token)
@@ -99,16 +118,14 @@ def handler(event: dict, context) -> dict:
 
         user_id = str(row[0])
         user_email = str(row[1])
-        amount = 65000  # 650 рублей в копейках
-        import time
-        order_id = f"sub_{user_id[:8]}_{int(time.time())}"
+        order_id = f"sub_{user_id[:8]}_{int(time.time())}_{months}m"
 
         params = {
             'TerminalKey': TERMINAL_ID,
-            'Amount': amount,
+            'Amount': plan['amount'],
             'OrderId': order_id,
-            'Description': 'Подписка Долговик — 1 месяц',
-            'DATA': json.dumps({'user_id': user_id}),
+            'Description': f"Подписка Долговик — {plan['label']}",
+            'DATA': json.dumps({'user_id': user_id, 'days': plan['days']}),
         }
         params['Token'] = tbank_sign(params, SECRET_KEY)
 
@@ -141,24 +158,55 @@ def handler(event: dict, context) -> dict:
         data_raw = body.get('DATA', '{}')
         data = json.loads(data_raw) if isinstance(data_raw, str) else data_raw
         user_id = data.get('user_id')
+        days = int(data.get('days', 30))
 
         if not user_id:
             return resp(400, {'error': 'user_id не найден'})
 
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute(f"SELECT paid_until FROM {SCHEMA}.users WHERE id = %s", (user_id,))
-        row = cur.fetchone()
-        if not row:
+        new_date = extend_subscription(cur, conn, user_id, days)
+        if not new_date:
             return resp(404, {'error': 'Пользователь не найден'})
 
-        today = date.today()
-        current_paid = row[0]
-        new_paid_until = (current_paid if current_paid and current_paid >= today else today) + timedelta(days=30)
+        return resp(200, {'ok': True, 'paid_until': str(new_date)})
 
-        cur.execute(f"UPDATE {SCHEMA}.users SET paid_until = %s WHERE id = %s", (new_paid_until, user_id))
-        conn.commit()
+    # ── ADMIN: EXTEND SUBSCRIPTION ────────────────────────
+    if method == 'POST' and action == 'admin_extend':
+        token = (event.get('headers') or {}).get('X-Session-Token', '')
+        if not token:
+            return resp(401, {'error': 'Не авторизован'})
 
-        return resp(200, {'ok': True})
+        conn = get_conn()
+        cur = conn.cursor()
+        caller = get_user_by_token(cur, token)
+        if not caller:
+            return resp(401, {'error': 'Сессия истекла'})
+
+        caller_phone = str(caller[6] or '').replace(' ', '').replace('-', '')
+        if caller_phone != ADMIN_PHONE and not caller[5]:
+            return resp(403, {'error': 'Доступ запрещён'})
+
+        body = json.loads(event.get('body') or '{}')
+        user_id = body.get('userId')
+        months = int(body.get('months', 1))
+        plan = PLANS.get(months, PLANS[1])
+
+        if not user_id:
+            return resp(400, {'error': 'userId обязателен'})
+
+        new_date = extend_subscription(cur, conn, user_id, plan['days'])
+        if not new_date:
+            return resp(404, {'error': 'Пользователь не найден'})
+
+        return resp(200, {'ok': True, 'paid_until': str(new_date)})
+
+    # ── GET PLANS ─────────────────────────────────────────
+    if method == 'GET' and action == 'plans':
+        return resp(200, {'plans': [
+            {'months': k, 'days': v['days'], 'amount': v['amount'],
+             'price': v['amount'] // 100, 'label': v['label']}
+            for k, v in PLANS.items()
+        ]})
 
     return resp(404, {'error': 'Неизвестное действие'})

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { useAuth } from '@/context/AuthContext';
-import { adminGetStats, adminGetUsers, adminToggleUser, adminGetOrders, adminGetDbInfo, adminGetFeedback, adminReplyFeedback, adminMarkFeedbackRead } from '@/api';
+import { adminGetStats, adminGetUsers, adminToggleUser, adminGetOrders, adminGetDbInfo, adminGetFeedback, adminReplyFeedback, adminMarkFeedbackRead, adminExtendSubscription } from '@/api';
 
 interface Stats {
   totalUsers: number;
@@ -23,7 +23,16 @@ interface AdminUser {
   createdAt: string;
   lastLogin: string | null;
   sessionCount: number;
+  paidUntil?: string | null;
+  freeUntil?: string | null;
 }
+
+const EXTEND_PLANS = [
+  { months: 1,  label: '1 мес' },
+  { months: 3,  label: '3 мес' },
+  { months: 6,  label: '6 мес' },
+  { months: 12, label: '1 год' },
+];
 
 interface AdminOrder {
   id: string;
@@ -77,6 +86,9 @@ export default function AdminSection() {
   const [replySending, setReplySending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [togglingUser, setTogglingUser] = useState<string | null>(null);
+  const [extendingUser, setExtendingUser] = useState<string | null>(null);
+  const [extendMonths, setExtendMonths] = useState<Record<string, number>>({});
+  const [extendLoading, setExtendLoading] = useState<string | null>(null);
 
   const load = async (t: Tab) => {
     if (!token) return;
@@ -113,6 +125,21 @@ export default function AdminSection() {
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, isActive: result.isActive } : u));
     } finally {
       setTogglingUser(null);
+    }
+  };
+
+  const handleExtend = async (userId: string) => {
+    if (!token) return;
+    const months = extendMonths[userId] || 1;
+    setExtendLoading(userId);
+    try {
+      const res = await adminExtendSubscription(token, userId, months);
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, paidUntil: res.paid_until } : u));
+      setExtendingUser(null);
+    } catch {
+      alert('Ошибка при продлении подписки');
+    } finally {
+      setExtendLoading(null);
     }
   };
 
@@ -237,7 +264,8 @@ export default function AdminSection() {
           ) : (
             <div className="divide-y divide-border">
               {users.map(u => (
-                <div key={u.id} className="flex items-center gap-3 px-4 py-3">
+                <div key={u.id} className="px-4 py-3 space-y-3">
+                <div className="flex items-center gap-3">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                     u.isAdmin ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground'
                   }`}>
@@ -262,18 +290,70 @@ export default function AdminSection() {
                     </div>
                   </div>
                   {!u.isAdmin && (
-                    <button
-                      onClick={() => handleToggleUser(u.id)}
-                      disabled={togglingUser === u.id}
-                      className={`shrink-0 text-xs px-3 py-1.5 rounded-md border transition-colors ${
-                        u.isActive
-                          ? 'border-red-200 text-red-600 hover:bg-red-50'
-                          : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'
-                      } disabled:opacity-40`}
-                    >
-                      {togglingUser === u.id ? '...' : u.isActive ? 'Заблокировать' : 'Разблокировать'}
-                    </button>
+                    <div className="flex flex-col gap-1 shrink-0 items-end">
+                      <button
+                        onClick={() => handleToggleUser(u.id)}
+                        disabled={togglingUser === u.id}
+                        className={`text-xs px-3 py-1.5 rounded-md border transition-colors ${
+                          u.isActive
+                            ? 'border-red-200 text-red-600 hover:bg-red-50'
+                            : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                        } disabled:opacity-40`}
+                      >
+                        {togglingUser === u.id ? '...' : u.isActive ? 'Заблокировать' : 'Разблокировать'}
+                      </button>
+                      <button
+                        onClick={() => setExtendingUser(extendingUser === u.id ? null : u.id)}
+                        className="text-xs px-3 py-1.5 rounded-md border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors"
+                      >
+                        Подписка
+                      </button>
+                    </div>
                   )}
+                </div>
+                {extendingUser === u.id && (
+                  <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 space-y-2">
+                    <div className="text-xs font-medium text-blue-700">Продлить подписку</div>
+                    {u.paidUntil && (
+                      <div className="text-xs text-muted-foreground">
+                        Активна до: {new Date(u.paidUntil).toLocaleDateString('ru')}
+                      </div>
+                    )}
+                    <div className="flex gap-1.5 flex-wrap">
+                      {EXTEND_PLANS.map(p => (
+                        <button
+                          key={p.months}
+                          onClick={() => setExtendMonths(prev => ({ ...prev, [u.id]: p.months }))}
+                          className={`text-xs px-3 py-1.5 rounded-md border transition-colors ${
+                            (extendMonths[u.id] || 1) === p.months
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'border-blue-200 text-blue-700 hover:bg-blue-100'
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleExtend(u.id)}
+                        disabled={extendLoading === u.id}
+                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                      >
+                        {extendLoading === u.id
+                          ? <><Icon name="Loader2" size={12} className="animate-spin" />Продление...</>
+                          : <><Icon name="CalendarPlus" size={12} />Продлить</>
+                        }
+                      </button>
+                      <button
+                        onClick={() => setExtendingUser(null)}
+                        className="text-xs px-3 py-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Отмена
+                      </button>
+                    </div>
+                  </div>
+                )}
                 </div>
               ))}
             </div>

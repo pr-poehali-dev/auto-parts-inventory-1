@@ -101,16 +101,19 @@ def handler(event: dict, context) -> dict:
             cur.execute(f"""
                 SELECT u.id, u.email, u.phone, u.name, u.is_active, u.created_at,
                        COUNT(s.id) as session_count,
-                       MAX(s.created_at) as last_login
+                       MAX(s.created_at) as last_login,
+                       u.paid_until, u.free_until
                 FROM {SCHEMA}.users u
                 LEFT JOIN {SCHEMA}.sessions s ON s.user_id = u.id
                 GROUP BY u.id ORDER BY u.created_at DESC
             """)
-            cols = ['id', 'email', 'phone', 'name', 'isActive', 'createdAt', 'sessionCount', 'lastLogin']
+            cols = ['id', 'email', 'phone', 'name', 'isActive', 'createdAt', 'sessionCount', 'lastLogin', 'paidUntil', 'freeUntil']
             rows = [dict(zip(cols, row)) for row in cur.fetchall()]
             for r in rows:
                 r['id'] = str(r['id'])
                 r['isAdmin'] = str(r['phone'] or '').replace(' ', '').replace('-', '') == ADMIN_PHONE
+                r['paidUntil'] = str(r['paidUntil']) if r['paidUntil'] else None
+                r['freeUntil'] = str(r['freeUntil']) if r['freeUntil'] else None
             return resp(200, rows)
 
         # ── TOGGLE USER ACTIVE ─────────────────────────────────
