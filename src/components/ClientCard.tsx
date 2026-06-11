@@ -684,19 +684,25 @@ export default function ClientCard({ client, onBack }: Props) {
                   </div>
 
                   <div className="space-y-1.5">
-                    {order.items.map((item, i) => (
-                      <div key={i} className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-mono-data text-xs text-muted-foreground shrink-0">{item.article}</span>
-                          <span className="truncate">{item.name}</span>
-                          <span className="text-xs text-muted-foreground shrink-0">{item.brand}</span>
+                    {order.items.map((item, i) => {
+                      const isReturned = item.status === 'returned';
+                      return (
+                        <div key={i} className={`flex items-center justify-between text-sm ${isReturned ? 'opacity-50' : ''}`}>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={`font-mono-data text-xs text-muted-foreground shrink-0 ${isReturned ? 'line-through' : ''}`}>{item.article}</span>
+                            <span className={`truncate ${isReturned ? 'line-through' : ''}`}>{item.name}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">{item.brand}</span>
+                            {isReturned && (
+                              <span className="text-xs px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 border border-orange-200 shrink-0">возврат</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 ml-2 text-xs text-muted-foreground">
+                            <span>{item.quantity} шт</span>
+                            <span className={`font-mono-data ${isReturned ? 'line-through' : ''}`}>× {item.price.toLocaleString()} ₽</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0 ml-2 text-xs text-muted-foreground">
-                          <span>{item.quantity} шт</span>
-                          <span className="font-mono-data">× {item.price.toLocaleString()} ₽</span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
 
