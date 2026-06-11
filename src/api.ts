@@ -91,3 +91,24 @@ export const adminGetUsers = (token: string) => adminReq(`${ADMIN_URL}?action=us
 export const adminToggleUser = (token: string, userId: string) => adminReq(`${ADMIN_URL}?action=toggle_user`, 'POST', { userId }, token);
 export const adminGetOrders = (token: string, limit = 50) => adminReq(`${ADMIN_URL}?action=orders&limit=${limit}`, 'GET', undefined, token);
 export const adminGetDbInfo = (token: string) => adminReq(`${ADMIN_URL}?action=dbinfo`, 'GET', undefined, token);
+
+// ── FEEDBACK ────────────────────────────────────────────
+const FEEDBACK_URL = (func2url as Record<string, string>)['feedback'];
+function feedbackReq(url: string, method = 'GET', body?: unknown, token?: string) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return fetch(url, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined })
+    .then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка');
+      return data;
+    });
+}
+export const sendFeedback = (message: string, token?: string) =>
+  feedbackReq(FEEDBACK_URL, 'POST', { message }, token);
+export const adminGetFeedback = (token: string) =>
+  feedbackReq(FEEDBACK_URL, 'GET', undefined, token);
+export const adminReplyFeedback = (token: string, id: number, reply: string) =>
+  feedbackReq(FEEDBACK_URL, 'PUT', { id, reply }, token);
+export const adminMarkFeedbackRead = (token: string, id: number) =>
+  feedbackReq(FEEDBACK_URL, 'PUT', { id, mark_read: true }, token);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { useAuth } from '@/context/AuthContext';
-import { adminGetStats, adminGetUsers, adminToggleUser, adminGetOrders, adminGetDbInfo } from '@/api';
+import { adminGetStats, adminGetUsers, adminToggleUser, adminGetOrders, adminGetDbInfo, adminGetFeedback, adminReplyFeedback, adminMarkFeedbackRead } from '@/api';
 
 interface Stats {
   totalUsers: number;
@@ -41,7 +41,19 @@ interface DbTable {
   rows: number;
 }
 
-type Tab = 'stats' | 'users' | 'orders' | 'db';
+interface FeedbackItem {
+  id: number;
+  user_id: number | null;
+  user_name: string;
+  user_phone: string;
+  message: string;
+  reply: string | null;
+  is_read: boolean;
+  replied_at: string | null;
+  created_at: string;
+}
+
+type Tab = 'stats' | 'users' | 'orders' | 'db' | 'feedback';
 
 const STATUS_LABELS: Record<string, string> = {
   new: 'Новый', ordered: 'Заказан', in_stock: 'На складе', issued: 'Выдан', cancelled: 'Отменён',
@@ -59,6 +71,10 @@ export default function AdminSection() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [dbTables, setDbTables] = useState<DbTable[]>([]);
+  const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([]);
+  const [replyingId, setReplyingId] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [replySending, setReplySending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [togglingUser, setTogglingUser] = useState<string | null>(null);
 
@@ -78,6 +94,9 @@ export default function AdminSection() {
       } else if (t === 'db') {
         const data = await adminGetDbInfo(token);
         setDbTables(data.tables);
+      } else if (t === 'feedback') {
+        const data = await adminGetFeedback(token);
+        setFeedbackItems(data.items);
       }
     } finally {
       setLoading(false);
@@ -97,11 +116,33 @@ export default function AdminSection() {
     }
   };
 
+  const handleReply = async (id: number) => {
+    if (!token || !replyText.trim()) return;
+    setReplySending(true);
+    try {
+      await adminReplyFeedback(token, id, replyText.trim());
+      setFeedbackItems(prev => prev.map(f => f.id === id ? { ...f, reply: replyText.trim(), is_read: true } : f));
+      setReplyingId(null);
+      setReplyText('');
+    } finally {
+      setReplySending(false);
+    }
+  };
+
+  const handleMarkRead = async (id: number) => {
+    if (!token) return;
+    await adminMarkFeedbackRead(token, id);
+    setFeedbackItems(prev => prev.map(f => f.id === id ? { ...f, is_read: true } : f));
+  };
+
+  const unreadCount = feedbackItems.filter(f => !f.is_read).length;
+
   const TABS: { id: Tab; label: string; icon: string }[] = [
     { id: 'stats', label: 'Обзор', icon: 'BarChart3' },
     { id: 'users', label: 'Пользователи', icon: 'Users' },
     { id: 'orders', label: 'Заказы', icon: 'ClipboardList' },
-    { id: 'db', label: 'База данных', icon: 'Database' },
+    { id: 'feedback', label: 'Сообщения', icon: 'MessageCircle' },
+    { id: 'db', label: 'БД', icon: 'Database' },
   ];
 
   return (
@@ -121,11 +162,16 @@ export default function AdminSection() {
       <div className="flex gap-1 bg-muted rounded-lg p-1 w-full overflow-x-auto">
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap flex-1 justify-center ${
+            className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap flex-1 justify-center ${
               tab === t.id ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
             }`}>
             <Icon name={t.icon as 'BarChart3'} size={13} />
             <span>{t.label}</span>
+            {t.id === 'feedback' && unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                {unreadCount}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -262,6 +308,85 @@ export default function AdminSection() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ОБРАТНАЯ СВЯЗЬ */}
+      {!loading && tab === 'feedback' && (
+        <div className="space-y-3">
+          {feedbackItems.length === 0 ? (
+            <div className="bg-white border border-border rounded-xl py-12 text-center text-sm text-muted-foreground">
+              <Icon name="MessageCircle" size={32} className="mx-auto mb-3 opacity-20" />
+              Сообщений пока нет
+            </div>
+          ) : feedbackItems.map(item => (
+            <div key={item.id} className={`bg-white border rounded-xl p-4 space-y-3 ${!item.is_read ? 'border-yellow-300 bg-yellow-50/30' : 'border-border'}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm">{item.user_name || 'Гость'}</span>
+                    {!item.is_read && (
+                      <span className="text-[10px] font-bold text-yellow-700 bg-yellow-100 px-1.5 py-0.5 rounded-full">Новое</span>
+                    )}
+                  </div>
+                  {item.user_phone && <div className="text-xs text-muted-foreground">{item.user_phone}</div>}
+                  <div className="text-xs text-muted-foreground">{new Date(item.created_at).toLocaleString('ru')}</div>
+                </div>
+                {!item.is_read && (
+                  <button onClick={() => handleMarkRead(item.id)} className="text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0">
+                    Прочитано
+                  </button>
+                )}
+              </div>
+              <div className="text-sm bg-muted/50 rounded-lg px-3 py-2.5 whitespace-pre-wrap">{item.message}</div>
+              {item.reply && (
+                <div className="text-sm bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2.5">
+                  <div className="text-xs text-emerald-600 font-medium mb-1 flex items-center gap-1">
+                    <Icon name="CornerDownRight" size={11} />
+                    Ваш ответ
+                  </div>
+                  <div className="whitespace-pre-wrap">{item.reply}</div>
+                </div>
+              )}
+              {replyingId === item.id ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={replyText}
+                    onChange={e => setReplyText(e.target.value)}
+                    placeholder="Введите ответ..."
+                    rows={3}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleReply(item.id)}
+                      disabled={replySending || !replyText.trim()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-foreground text-background rounded-lg text-xs font-semibold disabled:opacity-50"
+                    >
+                      {replySending && <Icon name="Loader" size={12} className="animate-spin" />}
+                      <Icon name="Send" size={12} />
+                      Отправить
+                    </button>
+                    <button
+                      onClick={() => { setReplyingId(null); setReplyText(''); }}
+                      className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setReplyingId(item.id); setReplyText(item.reply || ''); }}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Icon name="Reply" size={13} />
+                  {item.reply ? 'Изменить ответ' : 'Ответить'}
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
 

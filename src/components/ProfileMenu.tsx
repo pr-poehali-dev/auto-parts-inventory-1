@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { useAuth, User } from '@/context/AuthContext';
-import { authUpdate, getCompanySettings, saveCompanySettings } from '@/api';
+import { authUpdate, getCompanySettings, saveCompanySettings, sendFeedback } from '@/api';
 
 interface UpdateResult { user: User }
 
@@ -38,7 +38,11 @@ export default function ProfileMenu() {
   const { user, token, logout, setUser } = useAuth();
   const [open, setOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<'account' | 'company'>('account');
+  const [settingsTab, setSettingsTab] = useState<'account' | 'company' | 'feedback'>('account');
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackSending, setFeedbackSending] = useState(false);
+  const [feedbackSuccess, setFeedbackSuccess] = useState(false);
+  const [feedbackError, setFeedbackError] = useState('');
   const ref = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState({
@@ -126,7 +130,23 @@ export default function ProfileMenu() {
     }
   };
 
-  const openSettings = (tab: 'account' | 'company' = 'account') => {
+  const handleFeedbackSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!feedbackText.trim()) return;
+    setFeedbackSending(true);
+    setFeedbackError('');
+    try {
+      await sendFeedback(feedbackText.trim(), token || undefined);
+      setFeedbackSuccess(true);
+      setFeedbackText('');
+    } catch {
+      setFeedbackError('Не удалось отправить. Попробуйте ещё раз.');
+    } finally {
+      setFeedbackSending(false);
+    }
+  };
+
+  const openSettings = (tab: 'account' | 'company' | 'feedback' = 'account') => {
     setError(''); setSuccess('');
     setForm((f) => ({ ...f, oldPassword: '', password: '', password2: '' }));
     setSettingsTab(tab);
@@ -169,6 +189,13 @@ export default function ProfileMenu() {
             <Icon name="Building2" size={15} className="text-muted-foreground" />
             Реквизиты компании
           </button>
+          <button
+            onClick={() => openSettings('feedback')}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted transition-colors"
+          >
+            <Icon name="MessageCircle" size={15} className="text-muted-foreground" />
+            Написать нам
+          </button>
           <div className="border-t border-border mt-1 pt-1">
             <button
               onClick={() => { logout(); setOpen(false); }}
@@ -208,7 +235,68 @@ export default function ProfileMenu() {
                 <Icon name="Building2" size={14} />
                 Реквизиты
               </button>
+              <button
+                onClick={() => { setSettingsTab('feedback'); setFeedbackSuccess(false); setFeedbackError(''); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${settingsTab === 'feedback' ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-muted'}`}
+              >
+                <Icon name="MessageCircle" size={14} />
+                Связь
+              </button>
             </div>
+
+            {/* Вкладка: Обратная связь */}
+            {settingsTab === 'feedback' && (
+              <div className="px-6 py-6">
+                {feedbackSuccess ? (
+                  <div className="flex flex-col items-center gap-4 py-6 text-center">
+                    <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center">
+                      <Icon name="CheckCircle" size={28} className="text-emerald-500" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm">Сообщение отправлено!</div>
+                      <div className="text-xs text-muted-foreground mt-1">Мы ответим вам как можно скорее</div>
+                    </div>
+                    <button
+                      onClick={() => setFeedbackSuccess(false)}
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Написать ещё
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleFeedbackSend} className="flex flex-col gap-4">
+                    <div className="text-xs text-muted-foreground">
+                      Есть вопрос, предложение или нашли проблему? Напишите нам — мы читаем каждое сообщение.
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">Ваше сообщение</label>
+                      <textarea
+                        value={feedbackText}
+                        onChange={(e) => setFeedbackText(e.target.value)}
+                        placeholder="Опишите вашу проблему или предложение..."
+                        rows={5}
+                        className="w-full px-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                      />
+                    </div>
+                    {feedbackError && (
+                      <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 px-3 py-2 text-sm flex items-center gap-2">
+                        <Icon name="AlertCircle" size={14} className="shrink-0" />
+                        {feedbackError}
+                      </div>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={feedbackSending || !feedbackText.trim()}
+                      className="w-full bg-foreground text-background rounded-lg py-2.5 text-sm font-semibold hover:bg-foreground/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                    >
+                      {feedbackSending && <Icon name="Loader" size={14} className="animate-spin" />}
+                      <Icon name="Send" size={14} />
+                      Отправить
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
 
             {/* Вкладка: Реквизиты */}
             {settingsTab === 'company' && (
