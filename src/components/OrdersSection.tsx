@@ -306,7 +306,8 @@ export default function OrdersSection() {
   })();
 
   const displayed = orders.filter((o) => {
-    if (filter === 'active' && !ACTIVE_STATUSES.includes(o.status)) return false;
+    const allReturned = o.items.length > 0 && o.items.every(i => i.status === 'returned');
+    if (filter === 'active' && (!ACTIVE_STATUSES.includes(o.status) || allReturned)) return false;
     if (filter === 'issued' && o.status !== 'issued') return false;
     if (statusFilter && o.status !== statusFilter) return false;
     if (periodStart && new Date(o.date) < periodStart) return false;
@@ -321,7 +322,7 @@ export default function OrdersSection() {
     return true;
   });
 
-  const activeCount = orders.filter((o) => ACTIVE_STATUSES.includes(o.status)).length;
+  const activeCount = orders.filter((o) => ACTIVE_STATUSES.includes(o.status) && !o.items.every(i => i.status === 'returned')).length;
   const issuedCount = orders.filter((o) => o.status === 'issued').length;
 
   const totalSum = displayed.reduce((s, o) => s + o.total, 0);
