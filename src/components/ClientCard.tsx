@@ -240,7 +240,7 @@ export default function ClientCard({ client, onBack }: Props) {
       const created = await createOrder({
         clientId: client.id,
         items: validItems,
-        prepaid: 0,
+        prepaid: orderPrepaid,
         note: orderNote,
         status: 'new',
       });
