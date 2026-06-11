@@ -7,16 +7,17 @@ import { Button } from '@/components/ui/button';
 
 export default function PaymentSuccess() {
   const navigate = useNavigate();
-  const { token, login, user } = useAuth();
+  const { token, login } = useAuth();
 
   useEffect(() => {
     if (!token) return;
-    // Обновляем данные пользователя после оплаты
-    setTimeout(() => {
+    const t = setTimeout(() => {
       authMe(token)
-        .then((data) => { if (user) login(token, data.user); })
+        .then((data) => login(token, data.user))
         .catch(() => {});
     }, 2000);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   return (
