@@ -103,7 +103,7 @@ def handler(event: dict, context) -> dict:
             return resp(200, rows)
 
         # POST создать заказ
-        if method == 'POST' and action != 'balance':
+        if method == 'POST' and action not in ('balance', 'return'):
             body = json.loads(body_raw)
             oid = str(uuid.uuid4())
             items = body.get('items', [])
