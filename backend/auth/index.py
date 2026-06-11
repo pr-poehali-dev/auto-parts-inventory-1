@@ -135,7 +135,21 @@ def handler(event: dict, context) -> dict:
             """, (user_id, token, expires))
             conn.commit()
 
-            return resp(200, {'token': token, 'user': {'id': user_id, 'email': str(row[1]), 'phone': str(row[2] or ''), 'name': str(row[3] or '')}})
+            # Подписка при логине
+            from datetime import date as _date
+            cur.execute(f"SELECT paid_until, free_until, is_admin FROM {SCHEMA}.users WHERE id = %s", (user_id,))
+            sub = cur.fetchone()
+            _today = _date.today()
+            _paid = sub[0]; _free = sub[1]; _admin = sub[2]
+            _active = _admin or (_free and _free >= _today) or (_paid and _paid >= _today)
+
+            return resp(200, {'token': token, 'user': {
+                'id': user_id, 'email': str(row[1]), 'phone': str(row[2] or ''), 'name': str(row[3] or ''),
+                'subscription_active': bool(_active),
+                'paid_until': str(_paid) if _paid else None,
+                'free_until': str(_free) if _free else None,
+                'is_admin': _admin,
+            }})
 
         # ── ME (проверка токена) ───────────────────────────────
         if method == 'GET' and action == 'me':
@@ -145,7 +159,7 @@ def handler(event: dict, context) -> dict:
 
             now = datetime.now(timezone.utc)
             cur.execute(f"""
-                SELECT u.id, u.email, u.phone, u.name FROM {SCHEMA}.sessions s
+                SELECT u.id, u.email, u.phone, u.name, u.paid_until, u.free_until, u.is_admin FROM {SCHEMA}.sessions s
                 JOIN {SCHEMA}.users u ON u.id = s.user_id
                 WHERE s.token = %s AND s.expires_at > %s AND u.is_active = TRUE
             """, (token, now))
@@ -153,7 +167,31 @@ def handler(event: dict, context) -> dict:
             if not row:
                 return resp(401, {'error': 'Сессия истекла или недействительна'})
 
-            return resp(200, {'user': {'id': str(row[0]), 'email': str(row[1]), 'phone': str(row[2] or ''), 'name': str(row[3] or '')}})
+            from datetime import date
+            paid_until = row[4]
+            free_until = row[5]
+            is_admin = row[6]
+            today = date.today()
+
+            if is_admin:
+                subscription_active = True
+            elif free_until and free_until >= today:
+                subscription_active = True
+            elif paid_until and paid_until >= today:
+                subscription_active = True
+            else:
+                subscription_active = False
+
+            return resp(200, {'user': {
+                'id': str(row[0]),
+                'email': str(row[1]),
+                'phone': str(row[2] or ''),
+                'name': str(row[3] or ''),
+                'subscription_active': subscription_active,
+                'paid_until': str(paid_until) if paid_until else None,
+                'free_until': str(free_until) if free_until else None,
+                'is_admin': is_admin,
+            }})
 
         # ── FORGOT PASSWORD ───────────────────────────────────
         if method == 'POST' and action == 'forgot':

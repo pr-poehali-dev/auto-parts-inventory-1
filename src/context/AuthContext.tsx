@@ -6,6 +6,10 @@ export interface User {
   email: string;
   phone: string;
   name: string;
+  subscription_active?: boolean;
+  paid_until?: string | null;
+  free_until?: string | null;
+  is_admin?: boolean;
 }
 
 interface AuthContextValue {

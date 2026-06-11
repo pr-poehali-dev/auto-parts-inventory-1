@@ -74,6 +74,13 @@ export const getCompanySettings = () =>
 export const saveCompanySettings = (token: string, data: Record<string, string>) =>
   authReq(`${AUTH_URL}?action=company`, 'POST', data, token);
 
+// ── PAYMENT ─────────────────────────────────────────────
+const PAYMENT_URL = (func2url as Record<string, string>)['payment'];
+export const getSubscriptionStatus = (token: string) =>
+  authReq(`${PAYMENT_URL}?action=status`, 'GET', undefined, token);
+export const createPayment = (token: string) =>
+  authReq(`${PAYMENT_URL}?action=create`, 'POST', {}, token);
+
 // ── ADMIN ───────────────────────────────────────────────
 const ADMIN_URL = (func2url as Record<string, string>)['admin'];
 function adminReq(url: string, method = 'GET', body?: unknown, token?: string) {
