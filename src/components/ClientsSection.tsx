@@ -3,27 +3,10 @@ import Icon from '@/components/ui/icon';
 import { Client, ClientOrder } from '@/data/mockData';
 import { getClients, getClient, createClient, updateClient, getOrders } from '@/api';
 import ClientCard from '@/components/ClientCard';
-
-function dbToClient(r: Record<string, unknown>): Client {
-  return {
-    id: r.id as string,
-    type: r.type as 'individual' | 'company',
-    firstName: r.firstName as string,
-    lastName: (r.lastName as string) || undefined,
-    middleName: (r.middleName as string) || undefined,
-    companyName: (r.companyName as string) || undefined,
-    phone: r.phone as string,
-    email: (r.email as string) || undefined,
-    city: (r.city as string) || undefined,
-    address: (r.address as string) || undefined,
-    note: (r.note as string) || undefined,
-    balance: Number(r.balance),
-    totalOrders: Number(r.totalOrders),
-    totalSpent: Number(r.totalSpent),
-    createdAt: (r.createdAt as string) || new Date().toISOString().slice(0, 10),
-    vins: (r.vins as string[]) || [],
-  };
-}
+import { dbToClient, isNew, hasDebt, hasActive } from '@/components/clients/clientsUtils';
+import ClientsSidebar from '@/components/clients/ClientsSidebar';
+import ClientsList from '@/components/clients/ClientsList';
+import AddClientModal from '@/components/clients/AddClientModal';
 
 export default function ClientsSection() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -36,12 +19,6 @@ export default function ClientsSection() {
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'orders'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [group, setGroup] = useState<'all' | 'new' | 'debt' | 'active' | 'deleted'>('all');
-  const [form, setForm] = useState<Partial<Client>>({
-    type: 'individual', firstName: '', lastName: '', middleName: '',
-    companyName: '', phone: '', email: '', city: '', address: '', note: '',
-  });
-  const [formVins, setFormVins] = useState<string[]>(['']);
-  const [addTab, setAddTab] = useState<'register' | 'invite'>('register');
 
   useEffect(() => {
     Promise.all([
@@ -55,14 +32,6 @@ export default function ClientsSection() {
     else { setSortBy(field); setSortDir('asc'); }
   };
 
-  const isNew = (c: Client) => {
-    const diff = (Date.now() - new Date(c.createdAt).getTime()) / (1000 * 60 * 60 * 24);
-    return diff <= 30;
-  };
-  const hasDebt = (c: Client) => c.balance < 0;
-  const hasActive = (c: Client) =>
-    orders.some((o) => o.clientId === c.id && (o.status === 'new' || o.status === 'ordered' || o.status === 'in_stock'));
-
   const visibleClients = clients.filter((c) => !c.isDeleted);
   const deletedClients = clients.filter((c) => c.isDeleted);
 
@@ -70,7 +39,7 @@ export default function ClientsSection() {
     all: visibleClients.length,
     new: visibleClients.filter(isNew).length,
     debt: visibleClients.filter(hasDebt).length,
-    active: visibleClients.filter(hasActive).length,
+    active: visibleClients.filter((c) => hasActive(c, orders)).length,
     deleted: deletedClients.length,
   };
 
@@ -80,7 +49,7 @@ export default function ClientsSection() {
       if (c.isDeleted) return false;
       if (group === 'new') return isNew(c);
       if (group === 'debt') return hasDebt(c);
-      if (group === 'active') return hasActive(c);
+      if (group === 'active') return hasActive(c, orders);
       return true;
     })
     .filter((c) => {
@@ -110,14 +79,7 @@ export default function ClientsSection() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
 
-  const getClientPaymentStatus = (clientId: string) => {
-    const client = filtered.find((c) => c.id === clientId);
-    if (!client) return null;
-    if (client.balance < 0) return 'debt';
-    return null;
-  };
-
-  const handleAdd = async () => {
+  const handleAdd = async (form: Partial<Client>, formVins: string[]) => {
     if (!form.firstName || !form.phone) return;
     setSaving(true);
     try {
@@ -125,8 +87,6 @@ export default function ClientsSection() {
       const created = await createClient({ ...form, vins });
       setClients((prev) => [dbToClient(created), ...prev]);
       setShowAdd(false);
-      setForm({ type: 'individual', firstName: '', lastName: '', middleName: '', companyName: '', phone: '', email: '', city: '', address: '' });
-      setFormVins(['']);
     } finally {
       setSaving(false);
     }
@@ -142,13 +102,7 @@ export default function ClientsSection() {
     setClients((prev) => prev.map((x) => x.id === c.id ? { ...x, isDeleted: false } : x));
   };
 
-  const clientName = (c: Client) =>
-    c.type === 'company' ? c.companyName || c.firstName : [c.lastName, c.firstName, c.middleName].filter(Boolean).join(' ');
-
-  const clientInitials = (c: Client) => {
-    if (c.type === 'company') return (c.companyName || 'К').slice(0, 2).toUpperCase();
-    return ((c.lastName?.[0] || '') + (c.firstName?.[0] || '')).toUpperCase() || '?';
-  };
+  void handleDelete;
 
   if (selected) {
     return (
@@ -185,322 +139,36 @@ export default function ClientsSection() {
         </button>
       </div>
 
-      {/* Мобильные группы + сортировка */}
-      <div className="md:hidden overflow-x-auto pb-1 -mx-1 px-1">
-        <div className="flex gap-2 min-w-max">
-          {([
-            { id: 'name', label: 'А→Я', icon: 'ArrowUpAZ' },
-            { id: 'date', label: 'Дата', icon: 'Calendar' },
-            { id: 'orders', label: 'Заказы', icon: 'ShoppingCart' },
-          ] as const).map((s) => (
-            <button
-              key={s.id}
-              onClick={() => toggleSort(s.id)}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all shrink-0 ${
-                sortBy === s.id
-                  ? 'bg-foreground text-background border-foreground'
-                  : 'bg-white text-muted-foreground border-border'
-              }`}
-            >
-              <Icon name={s.icon as 'Calendar'} size={11} />
-              {s.label}
-              {sortBy === s.id && (
-                <Icon name={sortDir === 'asc' ? 'ArrowUp' : 'ArrowDown'} size={10} />
-              )}
-            </button>
-          ))}
-          <div className="w-px bg-border self-stretch mx-1" />
-        </div>
-        <div className="flex gap-2 min-w-max mt-2">
-          {([
-            { id: 'all', label: 'Все' },
-            { id: 'new', label: 'Новые' },
-            { id: 'debt', label: 'Долг' },
-            { id: 'active', label: 'Активные' },
-            { id: 'deleted', label: 'Удалённые' },
-          ] as const).map((g) => (
-            <button
-              key={g.id}
-              onClick={() => setGroup(g.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all shrink-0 ${
-                group === g.id
-                  ? 'bg-yellow-400 text-black border-yellow-400'
-                  : 'bg-white text-muted-foreground border-border'
-              }`}
-            >
-              {g.label}
-              <span className={`font-mono-data ${group === g.id ? 'text-black/70' : 'text-muted-foreground'}`}>{counts[g.id]}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
       <div className="flex gap-4">
-        {/* Левая панель групп */}
-        <div className="w-52 shrink-0 hidden md:block">
-          <div className="bg-white border border-border rounded-xl overflow-hidden">
-            {([
-              { id: 'all', label: 'Все клиенты', icon: 'Users' },
-              { id: 'new', label: 'Новые', icon: 'UserPlus' },
-              { id: 'debt', label: 'Долг по балансу', icon: 'AlertTriangle' },
-              { id: 'active', label: 'С активными заказами', icon: 'ShoppingCart' },
-              { id: 'deleted', label: 'Удалённые', icon: 'Trash2' },
-            ] as const).map((g, i, arr) => (
-              <button
-                key={g.id}
-                onClick={() => setGroup(g.id)}
-                className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors ${
-                  i !== arr.length - 1 ? 'border-b border-border' : ''
-                } ${
-                  group === g.id ? 'bg-yellow-400 text-black font-medium' : 'text-foreground hover:bg-muted/60'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Icon name={g.icon as 'Users'} size={14} />
-                  {g.label}
-                </div>
-                <span className="font-mono-data text-xs">{counts[g.id]}</span>
-              </button>
-            ))}
-          </div>
+        <ClientsSidebar
+          group={group}
+          sortBy={sortBy}
+          sortDir={sortDir}
+          counts={counts}
+          onGroupChange={setGroup}
+          onToggleSort={toggleSort}
+        />
 
-          <div className="mt-3 bg-white border border-border rounded-xl overflow-hidden">
-            <div className="px-4 py-2 border-b border-border">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Сортировка</span>
-            </div>
-            {([
-              { id: 'name', label: 'По алфавиту', icon: 'ArrowUpAZ' },
-              { id: 'date', label: 'По дате', icon: 'Calendar' },
-              { id: 'orders', label: 'По заказам', icon: 'ShoppingCart' },
-            ] as const).map((s, i, arr) => (
-              <button
-                key={s.id}
-                onClick={() => toggleSort(s.id)}
-                className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors ${
-                  i !== arr.length - 1 ? 'border-b border-border' : ''
-                } ${
-                  sortBy === s.id ? 'bg-muted font-medium text-foreground' : 'text-foreground hover:bg-muted/60'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Icon name={s.icon as 'ArrowUpAZ'} size={14} />
-                  {s.label}
-                </div>
-                {sortBy === s.id && (
-                  <Icon name={sortDir === 'asc' ? 'ArrowUp' : 'ArrowDown'} size={13} className="text-muted-foreground" />
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex-1 min-w-0 w-full">
-          <div className="hidden md:flex items-center justify-between mb-3">
-            <span className="text-sm font-medium">
-              {{ all: 'Все клиенты', new: 'Новые', debt: 'Долг по балансу', active: 'С активными заказами', deleted: 'Удалённые' }[group]}
-            </span>
-            <span className="text-xs text-muted-foreground">{filtered.length} клиентов</span>
-          </div>
-
-          {loading ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              <Icon name="Loader" size={24} className="mx-auto mb-2 opacity-30 animate-spin" />
-              Загрузка...
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              <Icon name="Users" size={32} className="mx-auto mb-2 opacity-20" />
-              {search ? 'Никого не нашли' : 'Клиентов пока нет'}
-            </div>
-          ) : (
-            <div className="bg-white border border-border rounded-xl overflow-hidden">
-              {filtered.map((client, idx) => {
-                const payStatus = getClientPaymentStatus(client.id);
-                return (
-                  <div
-                    key={client.id}
-                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors active:bg-muted/50 ${idx > 0 ? 'border-t border-border' : ''}`}
-                    onClick={() => {
-                      if (client.isDeleted) return;
-                      getClient(client.id)
-                        .then((fresh) => setSelected(dbToClient(fresh as Record<string, unknown>)))
-                        .catch(() => setSelected(client));
-                    }}
-                  >
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                      client.type === 'company' ? 'bg-yellow-100 text-yellow-800' : 'bg-muted text-foreground'
-                    }`}>
-                      {clientInitials(client)}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-medium truncate">{clientName(client)}</span>
-                        {client.type === 'company' && <Icon name="Building2" size={11} className="text-muted-foreground shrink-0" />}
-                      </div>
-                      <div className="text-xs text-muted-foreground font-mono-data">{client.phone}</div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      {payStatus === 'debt' && <Icon name="AlertTriangle" size={13} className="text-red-500" />}
-                      {isNew(client) && <span className="text-xs bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded min-w-[42px] text-center">новый</span>}
-                      {!isNew(client) && payStatus !== 'debt' && <span className="min-w-[42px]" />}
-                      {payStatus === 'paid' && <Icon name="Check" size={14} className="text-emerald-500" />}
-                      {client.isDeleted && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleRestore(client); }}
-                          className="text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-1"
-                        >
-                          Восстановить
-                        </button>
-                      )}
-                      <Icon name="ChevronRight" size={14} className="text-muted-foreground" />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <ClientsList
+          clients={filtered}
+          loading={loading}
+          search={search}
+          group={group}
+          onSelect={(client) => {
+            getClient(client.id)
+              .then((fresh) => setSelected(dbToClient(fresh as Record<string, unknown>)))
+              .catch(() => setSelected(client));
+          }}
+          onRestore={handleRestore}
+        />
       </div>
 
       {showAdd && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50" onClick={() => setShowAdd(false)}>
-          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl w-full sm:max-w-md mx-0 sm:mx-4 p-6 animate-slide-up max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold">Новый клиент</h3>
-              <button onClick={() => setShowAdd(false)} className="text-muted-foreground hover:text-foreground"><Icon name="X" size={18} /></button>
-            </div>
-
-            <div className="flex gap-2 mb-4">
-              {(['register', 'invite'] as const).map((t) => (
-                <button key={t} onClick={() => setAddTab(t)}
-                  className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${addTab === t ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground'}`}>
-                  {t === 'register' ? 'Ввести данные' : 'Пригласить'}
-                </button>
-              ))}
-            </div>
-
-            {addTab === 'register' ? (
-              <div className="space-y-3">
-                <div className="flex gap-2">
-                  {(['individual', 'company'] as const).map((t) => (
-                    <button key={t} onClick={() => setForm((f) => ({ ...f, type: t }))}
-                      className={`flex-1 py-1.5 rounded-md text-sm border transition-colors ${form.type === t ? 'border-foreground bg-foreground text-background' : 'border-border text-muted-foreground'}`}>
-                      {t === 'individual' ? 'Физлицо' : 'Организация'}
-                    </button>
-                  ))}
-                </div>
-
-                {form.type === 'company' ? (
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1">Название организации *</label>
-                    <input value={form.companyName || ''} onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
-                      className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="col-span-2">
-                      <label className="block text-xs text-muted-foreground mb-1">Фамилия</label>
-                      <input value={form.lastName || ''} onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
-                        className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-muted-foreground mb-1">Имя *</label>
-                      <input value={form.firstName || ''} onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
-                        className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-muted-foreground mb-1">Отчество</label>
-                      <input value={form.middleName || ''} onChange={(e) => setForm((f) => ({ ...f, middleName: e.target.value }))}
-                        className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-                    </div>
-                  </div>
-                )}
-
-                {form.type === 'company' && (
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1">Имя менеджера *</label>
-                    <input value={form.firstName || ''} onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
-                      className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Телефон *</label>
-                  <input type="tel" value={form.phone || ''} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                    placeholder="+7 (999) 000-00-00"
-                    className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-ring" />
-                </div>
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Email</label>
-                  <input type="email" value={form.email || ''} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                    className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-                </div>
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Город</label>
-                  <input value={form.city || ''} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-                    className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-                </div>
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Примечание</label>
-                  <textarea value={form.note || ''} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} rows={2}
-                    className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
-                </div>
-
-                {/* VIN-номера */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs text-muted-foreground">VIN автомобиля</label>
-                    <button
-                      type="button"
-                      onClick={() => setFormVins((v) => [...v, ''])}
-                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <Icon name="Plus" size={12} />
-                      Добавить ещё
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {formVins.map((vin, i) => (
-                      <div key={i} className="flex gap-2">
-                        <input
-                          value={vin}
-                          onChange={(e) => setFormVins((v) => v.map((x, j) => j === i ? e.target.value.toUpperCase() : x))}
-                          placeholder="например: XTA21099080123456"
-                          maxLength={17}
-                          className="flex-1 px-3 py-2 border border-border rounded-md text-sm font-mono-data uppercase focus:outline-none focus:ring-2 focus:ring-ring"
-                        />
-                        {formVins.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => setFormVins((v) => v.filter((_, j) => j !== i))}
-                            className="text-muted-foreground hover:text-red-500 transition-colors px-2"
-                          >
-                            <Icon name="X" size={14} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-6 text-sm text-muted-foreground">
-                <Icon name="Mail" size={28} className="mx-auto mb-2 opacity-30" />
-                Функция приглашений будет доступна позже
-              </div>
-            )}
-
-            <div className="flex gap-3 mt-5">
-              <button onClick={() => setShowAdd(false)} className="flex-1 px-4 py-2 border border-border rounded-md text-sm hover:bg-muted transition-colors">Отмена</button>
-              <button onClick={handleAdd} disabled={saving || !form.firstName || !form.phone}
-                className="flex-1 px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:bg-foreground/80 transition-colors disabled:opacity-50">
-                {saving ? 'Сохранение...' : 'Добавить'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <AddClientModal
+          onClose={() => setShowAdd(false)}
+          onAdd={handleAdd}
+          saving={saving}
+        />
       )}
     </div>
   );
