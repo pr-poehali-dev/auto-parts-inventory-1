@@ -412,7 +412,7 @@ export default function OrdersSection() {
             </div>
           )}
           {/* Шапка таблицы */}
-          <div className="hidden md:grid grid-cols-[28px_1fr_1.4fr_1fr_1fr_0.8fr_0.9fr] gap-3 px-4 py-2.5 bg-muted/40 border-b border-border text-xs text-muted-foreground font-medium">
+          <div className="hidden md:grid grid-cols-[28px_0.9fr_1.1fr_1fr_1.3fr_0.8fr_0.9fr] gap-3 px-4 py-2.5 bg-muted/40 border-b border-border text-xs text-muted-foreground font-medium">
             <span></span>
             <span>Дата</span>
             <span>Клиент</span>
@@ -451,10 +451,10 @@ export default function OrdersSection() {
               <div key={order.id} className={`${idx > 0 ? 'border-t border-border' : ''} ${isSelected ? 'bg-primary/5' : ''}`}>
                 {/* Desktop строка */}
                 <div
-                  className="hidden md:grid grid-cols-[28px_1fr_1.4fr_1fr_1fr_0.8fr_0.9fr] gap-3 px-4 py-3 hover:bg-muted/20 cursor-pointer transition-colors items-center"
+                  className="hidden md:grid grid-cols-[28px_0.9fr_1.1fr_1fr_1.3fr_0.8fr_0.9fr] gap-3 px-4 py-3 hover:bg-muted/20 cursor-pointer transition-colors items-start"
                   onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
                 >
-                  <div onClick={e => e.stopPropagation()}>
+                  <div onClick={e => e.stopPropagation()} className="pt-2.5">
                     <input
                       type="checkbox"
                       checked={isSelected}
@@ -512,7 +512,7 @@ export default function OrdersSection() {
                       />
                     ) : (
                       <div
-                        className="text-xs text-muted-foreground italic cursor-pointer hover:text-foreground transition-colors truncate"
+                        className="text-xs text-muted-foreground italic cursor-pointer hover:text-foreground transition-colors break-words"
                         onClick={() => { setEditingNoteId(order.id); setEditingNoteVal(order.note ?? ''); }}
                       >
                         {order.note || <span className="opacity-40">+ примечание</span>}
