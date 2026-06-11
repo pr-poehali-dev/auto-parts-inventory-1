@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { ClientOrder, Client, OrderItem } from '@/data/mockData';
-import { getOrders, getClients, updateOrder, deleteOrder } from '@/api';
+import { getOrders, getClients, updateOrder, deleteOrder, getReturns, createReturn } from '@/api';
 import InvoiceModal from '@/components/InvoiceModal';
 
 function clientName(c?: Client): string {
@@ -21,6 +21,18 @@ const STATUS_MAP: Record<string, { label: string; cls: string; dot: string }> = 
 
 const ACTIVE_STATUSES = ['new', 'ordered', 'in_stock'];
 const ALL_STATUSES = ['new', 'ordered', 'in_stock', 'issued', 'cancelled'];
+
+interface OrderReturn {
+  id: string;
+  orderId: string;
+  clientId: string;
+  clientName: string;
+  clientPhone: string;
+  items: OrderItem[];
+  amount: number;
+  reason: string | null;
+  createdAt: string;
+}
 
 function fmtDate(iso: string) {
   const d = new Date(iso);
@@ -56,6 +68,12 @@ export default function OrdersSection() {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [invoiceOrders, setInvoiceOrders] = useState<ClientOrder[] | null>(null);
   const [bulkWorking, setBulkWorking] = useState(false);
+  const [showReturns, setShowReturns] = useState(false);
+  const [returns, setReturns] = useState<OrderReturn[]>([]);
+  const [returnsLoading, setReturnsLoading] = useState(false);
+  const [returnModal, setReturnModal] = useState<{ order: ClientOrder; selectedIdxs: Set<number> } | null>(null);
+  const [returnReason, setReturnReason] = useState('');
+  const [returnSaving, setReturnSaving] = useState(false);
 
   const toggleSelectOrder = (orderId: string) => {
     setSelectedOrders(prev => {
@@ -103,6 +121,34 @@ export default function OrdersSection() {
     setConfirmDelete(null);
     setExpandedOrder(null);
     setDeleting(false);
+  };
+
+  const loadReturns = () => {
+    setReturnsLoading(true);
+    getReturns().then((data) => setReturns(data as OrderReturn[])).finally(() => setReturnsLoading(false));
+  };
+
+  const handleReturnToggle = (idx: number) => {
+    setReturnModal(prev => {
+      if (!prev) return prev;
+      const next = new Set(prev.selectedIdxs);
+      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      return { ...prev, selectedIdxs: next };
+    });
+  };
+
+  const handleReturnSubmit = async () => {
+    if (!returnModal || returnModal.selectedIdxs.size === 0) return;
+    setReturnSaving(true);
+    try {
+      const items = [...returnModal.selectedIdxs].map(i => returnModal.order.items[i]);
+      await createReturn({ orderId: returnModal.order.id, items, reason: returnReason });
+      setReturnModal(null);
+      setReturnReason('');
+      if (showReturns) loadReturns();
+    } finally {
+      setReturnSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -343,29 +389,102 @@ export default function OrdersSection() {
             Выданные {issuedCount > 0 && <span className="ml-1 opacity-70">{issuedCount}</span>}
           </button>
           <button
-            onClick={() => { setFilter('all'); setStatusFilter(''); }}
+            onClick={() => { setFilter('all'); setStatusFilter(''); setShowReturns(false); }}
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${
-              filter === 'all' && !statusFilter
+              filter === 'all' && !statusFilter && !showReturns
                 ? 'bg-foreground text-background border-foreground'
                 : 'bg-background text-muted-foreground border-border hover:border-foreground/30'
             }`}
           >
             Все
           </button>
-          <select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setFilter('all'); }}
-            className="text-xs border border-border rounded-lg px-2 py-1.5 bg-background focus:outline-none focus:ring-2 focus:ring-ring text-muted-foreground"
+          <button
+            onClick={() => { setShowReturns(true); setFilter('all'); setStatusFilter(''); loadReturns(); }}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${
+              showReturns
+                ? 'bg-orange-500 text-white border-orange-500'
+                : 'bg-background text-muted-foreground border-border hover:border-foreground/30'
+            }`}
           >
-            <option value="">Любой статус</option>
-            {ALL_STATUSES.map((s) => (
-              <option key={s} value={s}>{STATUS_MAP[s]?.label ?? s}</option>
-            ))}
-          </select>
+            Возвраты {returns.length > 0 && <span className="ml-1 opacity-80">{returns.length}</span>}
+          </button>
+          {!showReturns && (
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setFilter('all'); }}
+              className="text-xs border border-border rounded-lg px-2 py-1.5 bg-background focus:outline-none focus:ring-2 focus:ring-ring text-muted-foreground"
+            >
+              <option value="">Любой статус</option>
+              {ALL_STATUSES.map((s) => (
+                <option key={s} value={s}>{STATUS_MAP[s]?.label ?? s}</option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
-      {displayed.length === 0 ? (
+      {/* ── ВКЛАДКА ВОЗВРАТОВ ── */}
+      {showReturns ? (
+        <div>
+          {returnsLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Icon name="Loader" size={24} className="animate-spin text-muted-foreground" />
+            </div>
+          ) : returns.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground">
+              <Icon name="RotateCcw" size={40} className="mx-auto mb-3 opacity-30" />
+              <p className="text-sm">Возвратов пока нет</p>
+            </div>
+          ) : (
+            <div className="border border-border rounded-xl overflow-hidden bg-white">
+              <div className="hidden md:grid grid-cols-[1.2fr_1.2fr_2fr_0.8fr_1fr] gap-3 px-4 py-2.5 bg-muted/40 border-b border-border text-xs text-muted-foreground font-medium">
+                <span>Дата</span>
+                <span>Клиент</span>
+                <span>Позиции</span>
+                <span>Сумма</span>
+                <span>Причина</span>
+              </div>
+              {returns.map((r, idx) => (
+                <div key={r.id} className={`${idx > 0 ? 'border-t border-border' : ''} px-4 py-3`}>
+                  <div className="hidden md:grid grid-cols-[1.2fr_1.2fr_2fr_0.8fr_1fr] gap-3 items-start">
+                    <div>
+                      <div className="text-sm font-medium">{fmtDate(r.createdAt)}</div>
+                      <div className="text-xs text-muted-foreground">{new Date(r.createdAt).getFullYear()}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">{r.clientName}</div>
+                      {r.clientPhone && <div className="text-xs text-muted-foreground">{r.clientPhone}</div>}
+                    </div>
+                    <div className="space-y-1">
+                      {r.items.map((item, i) => (
+                        <div key={i} className="flex items-center gap-2 text-xs">
+                          {item.article && <span className="font-mono-data text-muted-foreground">{item.article}</span>}
+                          <span className="font-medium truncate">{item.name || item.article}</span>
+                          <span className="text-muted-foreground shrink-0">{item.quantity} шт × {item.price.toLocaleString('ru')} ₽</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-sm font-semibold font-mono-data text-orange-600">−{r.amount.toLocaleString('ru')} ₽</div>
+                    <div className="text-xs text-muted-foreground">{r.reason || '—'}</div>
+                  </div>
+                  {/* Mobile */}
+                  <div className="md:hidden space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{r.clientName}</span>
+                      <span className="text-sm font-semibold font-mono-data text-orange-600">−{r.amount.toLocaleString('ru')} ₽</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">{fmtDate(r.createdAt)}</div>
+                    {r.items.map((item, i) => (
+                      <div key={i} className="text-xs text-muted-foreground">{item.name || item.article} × {item.quantity}</div>
+                    ))}
+                    {r.reason && <div className="text-xs text-muted-foreground italic">{r.reason}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : displayed.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <Icon name="ClipboardList" size={40} className="mx-auto mb-3 opacity-30" />
           <p className="text-sm">{filter === 'active' ? 'Нет активных заказов' : 'Заказов пока нет'}</p>
@@ -777,6 +896,14 @@ export default function OrdersSection() {
                           >
                             Выдано
                           </button>
+                          <div className="w-px h-4 bg-border mx-1" />
+                          <button
+                            onClick={() => setReturnModal({ order, selectedIdxs: new Set(sel) })}
+                            className="px-3 py-1 rounded-md text-xs border border-orange-300 text-orange-700 bg-orange-50 hover:bg-orange-100 transition-colors font-medium flex items-center gap-1"
+                          >
+                            <Icon name="RotateCcw" size={11} />
+                            Возврат
+                          </button>
                         </div>
                       )}
                       
@@ -876,8 +1003,8 @@ export default function OrdersSection() {
         </div>
       )}
 
-      {/* Итоговая строка */}
-      {displayed.length > 0 && (
+      {/* Итоговая строка — только при обычных заказах */}
+      {!showReturns && displayed.length > 0 && (
         <div className="mt-3 flex items-center justify-end gap-4 px-4 py-3 bg-white border border-border rounded-xl text-sm">
           <span className="text-muted-foreground">{displayed.length} заказов</span>
           <div className="flex items-center gap-1.5">
@@ -897,6 +1024,78 @@ export default function OrdersSection() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Модал возврата позиций */}
+      {returnModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setReturnModal(null)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border">
+              <div>
+                <h3 className="text-base font-semibold">Оформить возврат</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {clientName(clients[returnModal.order.clientId])} · #{returnModal.order.id.slice(0, 8)}
+                </p>
+              </div>
+              <button onClick={() => setReturnModal(null)} className="text-muted-foreground hover:text-foreground"><Icon name="X" size={18} /></button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-xs text-muted-foreground">Выбери позиции для возврата. Деньги вернутся на баланс клиента.</p>
+              <div className="border border-border rounded-lg overflow-hidden">
+                {returnModal.order.items.map((item, i) => {
+                  const checked = returnModal.selectedIdxs.has(i);
+                  return (
+                    <div
+                      key={i}
+                      onClick={() => handleReturnToggle(i)}
+                      className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors text-sm ${i > 0 ? 'border-t border-border' : ''} ${checked ? 'bg-orange-50' : 'hover:bg-muted/20'}`}
+                    >
+                      <input type="checkbox" checked={checked} readOnly className="w-4 h-4 rounded accent-orange-500 cursor-pointer shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        {item.article && <span className="font-mono-data text-xs text-muted-foreground mr-2">{item.article}</span>}
+                        <span className="font-medium">{item.name || item.article}</span>
+                      </div>
+                      <div className="text-xs text-right shrink-0">
+                        <div>{item.quantity} шт</div>
+                        <div className="font-mono-data font-medium">{(item.quantity * item.price).toLocaleString('ru')} ₽</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {returnModal.selectedIdxs.size > 0 && (
+                <div className="flex items-center justify-between px-3 py-2 bg-orange-50 border border-orange-100 rounded-lg text-sm">
+                  <span className="text-orange-700">К возврату:</span>
+                  <span className="font-mono-data font-semibold text-orange-700">
+                    {[...returnModal.selectedIdxs].reduce((s, i) => s + returnModal.order.items[i].quantity * returnModal.order.items[i].price, 0).toLocaleString('ru')} ₽
+                  </span>
+                </div>
+              )}
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Причина возврата (необязательно)</label>
+                <input
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  placeholder="Брак, не подошло, ошибка заказа..."
+                  className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 px-5 pb-5">
+              <button onClick={() => setReturnModal(null)}
+                className="flex-1 px-4 py-2 border border-border rounded-md text-sm hover:bg-muted transition-colors">
+                Отмена
+              </button>
+              <button
+                onClick={handleReturnSubmit}
+                disabled={returnSaving || returnModal.selectedIdxs.size === 0}
+                className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-md text-sm font-medium hover:bg-orange-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {returnSaving ? <><Icon name="Loader2" size={14} className="animate-spin" />Оформляем...</> : <><Icon name="RotateCcw" size={14} />Оформить возврат</>}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

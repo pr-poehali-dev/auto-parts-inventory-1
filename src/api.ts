@@ -35,6 +35,8 @@ export const getOrders = (clientId?: string) =>
 export const createOrder = (data: unknown) => req(ORDERS_URL, 'POST', data);
 export const updateOrder = (id: string, data: unknown) => req(`${ORDERS_URL}?id=${id}`, 'PUT', data);
 export const deleteOrder = (id: string) => req(`${ORDERS_URL}?id=${id}`, 'DELETE');
+export const getReturns = () => req(`${ORDERS_URL}?action=returns`);
+export const createReturn = (data: unknown) => req(`${ORDERS_URL}?action=return`, 'POST', data);
 
 // ── BALANCE ────────────────────────────────────────────
 export const getBalanceHistory = (clientId: string) =>

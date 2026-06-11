@@ -6,6 +6,13 @@
       "path": "/",
       "expectedStatus": 200,
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "GET returns",
+      "method": "GET",
+      "path": "/?action=returns",
+      "expectedStatus": 200,
+      "bodyMatcher": "partial"
     }
   ]
 }

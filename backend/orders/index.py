@@ -62,7 +62,7 @@ def handler(event: dict, context) -> dict:
 
     try:
         # GET список заказов
-        if method == 'GET' and action != 'balance':
+        if method == 'GET' and action not in ('balance', 'returns'):
             if client_id_qs:
                 cur.execute(f"""
                     SELECT o.id, o.client_id, o.date, o.status, o.status_history, o.items, o.total, o.prepaid, o.note,
@@ -230,6 +230,65 @@ def handler(event: dict, context) -> dict:
                     return resp(404, {'error': 'Не найдено'})
                 return resp(200, row_to_order(cols, row))
             return resp(400, {'error': 'Нет полей'})
+
+        # GET возвраты
+        if method == 'GET' and action == 'returns':
+            cur.execute(f"""
+                SELECT r.id, r.order_id, r.client_id, r.items, r.amount, r.reason, r.created_at,
+                       COALESCE(c.company_name, CONCAT_WS(' ', c.last_name, c.first_name)) as client_name,
+                       c.phone as client_phone
+                FROM {SCHEMA}.order_returns r
+                JOIN {SCHEMA}.clients c ON c.id = r.client_id
+                ORDER BY r.created_at DESC
+            """)
+            rows = []
+            for row in cur.fetchall():
+                items = row[3] if isinstance(row[3], list) else json.loads(row[3])
+                rows.append({
+                    'id': row[0], 'orderId': row[1], 'clientId': row[2],
+                    'items': items, 'amount': float(row[4]),
+                    'reason': row[5], 'createdAt': str(row[6]),
+                    'clientName': row[7] or '—', 'clientPhone': row[8] or '',
+                })
+            return resp(200, rows)
+
+        # POST создать возврат
+        if method == 'POST' and action == 'return':
+            body = json.loads(body_raw)
+            ret_order_id = body.get('orderId')
+            ret_items = body.get('items', [])
+            reason = body.get('reason', '')
+
+            if not ret_order_id or not ret_items:
+                return resp(400, {'error': 'orderId и items обязательны'})
+
+            # Считаем сумму возврата
+            amount = sum(float(i.get('price', 0)) * int(i.get('quantity', 1)) for i in ret_items)
+
+            # Находим клиента заказа
+            cur.execute(f"SELECT client_id FROM {SCHEMA}.client_orders WHERE id = %s", (ret_order_id,))
+            ord_row = cur.fetchone()
+            if not ord_row:
+                return resp(404, {'error': 'Заказ не найден'})
+            client_id_ret = ord_row[0]
+
+            # Сохраняем возврат
+            ret_id = str(uuid.uuid4())
+            cur.execute(f"""
+                INSERT INTO {SCHEMA}.order_returns (id, order_id, client_id, items, amount, reason)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (ret_id, ret_order_id, client_id_ret, json.dumps(ret_items, ensure_ascii=False), amount, reason))
+
+            # Возвращаем деньги на баланс клиента
+            cur.execute(f"UPDATE {SCHEMA}.clients SET balance = balance + %s WHERE id = %s", (amount, client_id_ret))
+            cur.execute(f"""
+                INSERT INTO {SCHEMA}.balance_entries (id, client_id, date, entry_type, amount, note, order_id)
+                VALUES (%s, %s, %s, 'add', %s, %s, %s)
+            """, (str(uuid.uuid4()), client_id_ret, date.today().isoformat(), amount,
+                  f'Возврат позиции: {", ".join(i.get("name","") for i in ret_items)}', ret_order_id))
+
+            conn.commit()
+            return resp(201, {'id': ret_id, 'amount': amount, 'clientId': client_id_ret})
 
         # DELETE заказ
         if method == 'DELETE' and order_id:
