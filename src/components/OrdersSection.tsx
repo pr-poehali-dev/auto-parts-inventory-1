@@ -167,13 +167,15 @@ export default function OrdersSection() {
       // Автоисправление: если позиции уже в нужном статусе, но заказ отстал
       const fixedOrds = (ords as ClientOrder[]).map((o) => {
         if (!o.items?.length) return o;
-        const allIssued = o.items.every((item) => item.status === 'issued');
-        const allInStock = o.items.every((item) => item.status === 'in_stock' || item.status === 'issued');
+        const activeItems = o.items.filter(item => item.status !== 'returned');
+        if (!activeItems.length) return o;
+        const allIssued = activeItems.every((item) => item.status === 'issued');
+        const allInStock = activeItems.every((item) => item.status === 'in_stock' || item.status === 'issued');
         if (allIssued && o.status !== 'issued' && o.status !== 'cancelled') {
           updateOrder(o.id, { status: 'issued' });
           return { ...o, status: 'issued' };
         }
-        if (allInStock && o.status === 'new' || allInStock && o.status === 'ordered') {
+        if (allInStock && (o.status === 'new' || o.status === 'ordered')) {
           updateOrder(o.id, { status: 'in_stock' });
           return { ...o, status: 'in_stock' };
         }
@@ -254,9 +256,10 @@ export default function OrdersSection() {
     });
 
     let autoStatus: string | null = null;
-    if (newItems.every((item) => item.status === 'issued')) {
+    const activeNewItems = newItems.filter(item => item.status !== 'returned');
+    if (activeNewItems.length > 0 && activeNewItems.every((item) => item.status === 'issued')) {
       autoStatus = 'issued';
-    } else if (newItems.every((item) => item.status === 'in_stock' || item.status === 'issued')) {
+    } else if (activeNewItems.length > 0 && activeNewItems.every((item) => item.status === 'in_stock' || item.status === 'issued')) {
       autoStatus = 'in_stock';
     }
 

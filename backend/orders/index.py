@@ -177,10 +177,17 @@ def handler(event: dict, context) -> dict:
                 values.append(json.dumps(history, ensure_ascii=False))
 
                 if new_status == 'issued':
-                    cur.execute(f"SELECT client_id, total, status FROM {SCHEMA}.client_orders WHERE id = %s", (order_id,))
+                    cur.execute(f"SELECT client_id, total, status, items FROM {SCHEMA}.client_orders WHERE id = %s", (order_id,))
                     ord_row = cur.fetchone()
                     if ord_row:
                         client_id_ord, total_ord, old_status = ord_row[0], float(ord_row[1]), ord_row[2]
+                        # Пересчитываем total без возвращённых позиций
+                        ord_items = ord_row[3] if isinstance(ord_row[3], list) else json.loads(ord_row[3] or '[]')
+                        active_total = sum(
+                            float(i.get('price', 0)) * int(i.get('quantity', 1))
+                            for i in ord_items if i.get('status') != 'returned'
+                        )
+                        total_ord = active_total if active_total > 0 else total_ord
                         # Списываем сумму заказа с баланса только если статус меняется впервые на issued
                         if old_status != 'issued':
                             cur.execute(f"""
@@ -214,7 +221,11 @@ def handler(event: dict, context) -> dict:
 
             if 'items' in body:
                 new_items = body['items']
-                new_total = sum(float(i.get('price', 0)) * int(i.get('quantity', 1)) for i in new_items)
+                # Не считаем возвращённые позиции в total
+                new_total = sum(
+                    float(i.get('price', 0)) * int(i.get('quantity', 1))
+                    for i in new_items if i.get('status') != 'returned'
+                )
                 fields.append('items = %s')
                 values.append(json.dumps(new_items, ensure_ascii=False))
                 fields.append('total = %s')
