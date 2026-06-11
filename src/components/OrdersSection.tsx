@@ -380,9 +380,9 @@ export default function OrdersSection() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => { setFilter('active'); setStatusFilter(''); }}
+            onClick={() => { setFilter('active'); setStatusFilter(''); setShowReturns(false); }}
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${
-              filter === 'active' && !statusFilter
+              filter === 'active' && !statusFilter && !showReturns
                 ? 'bg-foreground text-background border-foreground'
                 : 'bg-background text-muted-foreground border-border hover:border-foreground/30'
             }`}
@@ -390,7 +390,7 @@ export default function OrdersSection() {
             Активные {activeCount > 0 && <span className="ml-1 opacity-70">{activeCount}</span>}
           </button>
           <button
-            onClick={() => { setFilter('issued'); setStatusFilter(''); }}
+            onClick={() => { setFilter('issued'); setStatusFilter(''); setShowReturns(false); }}
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${
               filter === 'issued'
                 ? 'bg-foreground text-background border-foreground'
