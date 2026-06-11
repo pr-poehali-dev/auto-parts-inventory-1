@@ -319,11 +319,11 @@ def handler(event: dict, context) -> dict:
                     cur.execute(f"UPDATE {SCHEMA}.client_orders SET status = %s WHERE id = %s",
                                 (new_order_status, ret_order_id))
 
-            # Возвращаем деньги на баланс клиента
-            cur.execute(f"UPDATE {SCHEMA}.clients SET balance = balance + %s WHERE id = %s", (amount, client_id_ret))
+            # Списываем сумму возврата с баланса (деньги выдаются клиенту наличными)
+            cur.execute(f"UPDATE {SCHEMA}.clients SET balance = balance - %s WHERE id = %s", (amount, client_id_ret))
             cur.execute(f"""
                 INSERT INTO {SCHEMA}.balance_entries (id, client_id, date, entry_type, amount, note, order_id)
-                VALUES (%s, %s, %s, 'add', %s, %s, %s)
+                VALUES (%s, %s, %s, 'remove', %s, %s, %s)
             """, (str(uuid.uuid4()), client_id_ret, date.today().isoformat(), amount,
                   f'Возврат позиции: {", ".join(i.get("name","") for i in ret_items)}', ret_order_id))
 
