@@ -279,6 +279,35 @@ def handler(event: dict, context) -> dict:
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, (ret_id, ret_order_id, client_id_ret, json.dumps(ret_items, ensure_ascii=False), amount, reason))
 
+            # Помечаем возвращённые позиции в заказе статусом 'returned'
+            cur.execute(f"SELECT items FROM {SCHEMA}.client_orders WHERE id = %s", (ret_order_id,))
+            items_row = cur.fetchone()
+            if items_row:
+                order_items = items_row[0] if isinstance(items_row[0], list) else json.loads(items_row[0])
+                # Собираем имена/артикулы возвращаемых позиций для сопоставления
+                ret_names = [i.get('name', '') for i in ret_items]
+                ret_articles = [i.get('article', '') for i in ret_items]
+                updated_items = []
+                ret_idx = list(range(len(ret_items)))  # отслеживаем какие ret_items уже использовали
+                for oi in order_items:
+                    matched = False
+                    for ri in ret_items:
+                        if (oi.get('name') == ri.get('name') and oi.get('article') == ri.get('article')
+                                and oi.get('status') != 'returned'):
+                            updated_items.append({**oi, 'status': 'returned'})
+                            matched = True
+                            break
+                    if not matched:
+                        updated_items.append(oi)
+                # Проверяем — все ли позиции возвращены
+                all_returned = all(i.get('status') == 'returned' for i in updated_items)
+                new_order_status = 'cancelled' if all_returned else None
+                cur.execute(f"UPDATE {SCHEMA}.client_orders SET items = %s WHERE id = %s",
+                            (json.dumps(updated_items, ensure_ascii=False), ret_order_id))
+                if new_order_status:
+                    cur.execute(f"UPDATE {SCHEMA}.client_orders SET status = %s WHERE id = %s",
+                                (new_order_status, ret_order_id))
+
             # Возвращаем деньги на баланс клиента
             cur.execute(f"UPDATE {SCHEMA}.clients SET balance = balance + %s WHERE id = %s", (amount, client_id_ret))
             cur.execute(f"""
@@ -288,7 +317,13 @@ def handler(event: dict, context) -> dict:
                   f'Возврат позиции: {", ".join(i.get("name","") for i in ret_items)}', ret_order_id))
 
             conn.commit()
-            return resp(201, {'id': ret_id, 'amount': amount, 'clientId': client_id_ret})
+            return resp(201, {
+                'id': ret_id,
+                'amount': amount,
+                'clientId': str(client_id_ret),
+                'updatedItems': updated_items if items_row else [],
+                'orderCancelled': bool(all_returned) if items_row else False,
+            })
 
         # DELETE заказ
         if method == 'DELETE' and order_id:

@@ -142,7 +142,17 @@ export default function OrdersSection() {
     setReturnSaving(true);
     try {
       const items = [...returnModal.selectedIdxs].map(i => returnModal.order.items[i]);
-      await createReturn({ orderId: returnModal.order.id, items, reason: returnReason });
+      const result = await createReturn({ orderId: returnModal.order.id, items, reason: returnReason }) as {
+        updatedItems?: OrderItem[];
+        orderCancelled?: boolean;
+      };
+      // Обновляем заказ в списке — меняем items и статус если все возвращены
+      setOrders(prev => prev.map(o => {
+        if (o.id !== returnModal.order.id) return o;
+        const newItems = result.updatedItems ?? o.items;
+        const newStatus = result.orderCancelled ? 'cancelled' : o.status;
+        return { ...o, items: newItems, status: newStatus };
+      }));
       setReturnModal(null);
       setReturnReason('');
       if (showReturns) loadReturns();
@@ -750,7 +760,8 @@ export default function OrdersSection() {
                 {/* Раскрытая детализация */}
                 {isExpanded && (() => {
                   const sel = selectedItems[order.id] ?? new Set<number>();
-                  const allSelected = order.items.length > 0 && sel.size === order.items.length;
+                  const selectableItems = order.items.filter(it => (it.status ?? 'pending') !== 'returned');
+                  const allSelected = selectableItems.length > 0 && sel.size === selectableItems.length;
                   return (
                   <div className="px-4 pb-4 bg-muted/20 border-t border-border">
                     <div className="pt-3 space-y-3">
@@ -761,7 +772,17 @@ export default function OrdersSection() {
                           <input
                             type="checkbox"
                             checked={allSelected}
-                            onChange={() => toggleAllItems(order.id, order.items.length)}
+                            onChange={() => {
+                              const selectableIdxs = order.items
+                                .map((it, i) => ({ it, i }))
+                                .filter(({ it }) => (it.status ?? 'pending') !== 'returned')
+                                .map(({ i }) => i);
+                              setSelectedItems(prev => {
+                                const cur = prev[order.id] ?? new Set();
+                                const allSel = cur.size === selectableIdxs.length;
+                                return { ...prev, [order.id]: allSel ? new Set() : new Set(selectableIdxs) };
+                              });
+                            }}
                             className="w-4 h-4 rounded accent-primary cursor-pointer"
                           />
                           <span className="text-xs text-muted-foreground">
@@ -772,6 +793,15 @@ export default function OrdersSection() {
                         {order.items.map((item, i) => {
                           const itemSt = item.status ?? 'pending';
                           const checked = sel.has(i);
+                          if (itemSt === 'returned') return (
+                            <div key={i} className={`flex items-center gap-3 px-3 py-2 text-sm opacity-40 line-through ${i > 0 ? 'border-t border-border' : ''}`}>
+                              <div className="w-4 h-4 shrink-0" />
+                              <div className="shrink-0 w-20 font-mono-data text-xs">{item.article || '—'}</div>
+                              <div className="flex-1 min-w-0 truncate">{item.name || item.article}</div>
+                              <span className="text-xs px-2 py-0.5 rounded-full border border-orange-200 bg-orange-50 text-orange-600 shrink-0">Возврат</span>
+                              <div className="text-xs text-right shrink-0">{item.quantity} шт · {(item.quantity * item.price).toLocaleString('ru')} ₽</div>
+                            </div>
+                          );
                           const ITEM_ST: Record<string, { label: string; cls: string }> = {
                             pending:  { label: 'Ожидается', cls: 'text-yellow-700 bg-yellow-50 border-yellow-200' },
                             in_stock: { label: 'На складе',  cls: 'text-purple-700 bg-purple-50 border-purple-200' },
