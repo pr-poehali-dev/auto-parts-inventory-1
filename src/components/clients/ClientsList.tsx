@@ -1,4 +1,5 @@
 import Icon from '@/components/ui/icon';
+import EmptyBackground from '@/components/ui/empty-background';
 import { Client } from '@/data/mockData';
 import { clientName, clientInitials, isNew } from './clientsUtils';
 
@@ -38,10 +39,11 @@ export default function ClientsList({
           Загрузка...
         </div>
       ) : clients.length === 0 ? (
-        <div className="py-12 text-center text-sm text-muted-foreground">
-          <Icon name="Users" size={32} className="mx-auto mb-2 opacity-20" />
-          {search ? 'Никого не нашли' : 'Клиентов пока нет'}
-        </div>
+        <EmptyBackground
+          icons={['Users', 'User', 'UserCheck', 'Phone', 'Car', 'Contact', 'UserCircle', 'BadgeCheck']}
+          text={search ? 'Никого не нашли' : 'Клиентов пока нет'}
+          minHeight="50vh"
+        />
       ) : (
         <div className="bg-white border border-border rounded-xl overflow-hidden">
           {clients.map((client, idx) => {

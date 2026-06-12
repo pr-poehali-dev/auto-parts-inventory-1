@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Icon from '@/components/ui/icon';
+import EmptyBackground from '@/components/ui/empty-background';
 import { Part, CATEGORIES } from '@/data/mockData';
 import { getParts, createPart, deletePart, updatePart } from '@/api';
 
@@ -246,10 +247,11 @@ export default function StockSection({ onSelectPart }: StockSectionProps) {
             Загрузка...
           </div>
         ) : filtered.length === 0 ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">
-            <Icon name="Package" size={32} className="mx-auto mb-2 opacity-20" />
-            Нет позиций
-          </div>
+          <EmptyBackground
+            icons={['Package', 'Wrench', 'Settings', 'Cog', 'Boxes', 'Archive', 'Tag', 'ShoppingCart']}
+            text="Нет позиций"
+            minHeight="50vh"
+          />
         ) : (
           filtered.map((part) => (
             <div

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Icon from '@/components/ui/icon';
+import EmptyBackground from '@/components/ui/empty-background';
 import { Part } from '@/data/mockData';
 import { getParts } from '@/api';
 
@@ -290,11 +291,11 @@ export default function SearchSection({ onSelectPart }: SearchSectionProps) {
       )}
 
       {!searched && (
-        <div className="py-12 text-center text-muted-foreground">
-          <Icon name="ScanBarcode" size={36} className="mx-auto mb-3 opacity-20" />
-          <p className="text-sm">Введите артикул, OEM-номер, наименование или штрихкод.</p>
-          <p className="text-xs mt-1 opacity-70">При вводе OEM-системы будут найдены все заменители на складе.</p>
-        </div>
+        <EmptyBackground
+          icons={['ScanBarcode', 'Search', 'Tag', 'Package', 'Barcode', 'PackageSearch', 'Hash', 'Scan']}
+          text="Введите артикул, OEM-номер, наименование или штрихкод."
+          subtext="При вводе OEM-системы будут найдены все заменители на складе."
+        />
       )}
     </div>
   );
