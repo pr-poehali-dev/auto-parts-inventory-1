@@ -103,13 +103,35 @@ export default function OrdersSection() {
     setInvoiceOrders(selectedList);
   };
 
-  const confirmIssue = async () => {
+  const confirmIssue = async (issuedItems: { orderId: string; itemIndex: number; issuedQty: number }[]) => {
     if (!invoiceOrders) return;
     setBulkWorking(true);
-    for (const o of invoiceOrders) {
-      await updateOrder(o.id, { status: 'issued' });
+
+    for (const order of invoiceOrders) {
+      const orderIssuedItems = issuedItems.filter(it => it.orderId === order.id);
+      if (orderIssuedItems.length === 0) continue;
+
+      const newItems = order.items.map((item, idx) => {
+        const issued = orderIssuedItems.find(it => it.itemIndex === idx);
+        if (!issued) return item;
+
+        if (issued.issuedQty >= item.quantity) {
+          return { ...item, status: 'issued' as const };
+        } else if (issued.issuedQty > 0) {
+          const remainder = item.quantity - issued.issuedQty;
+          return { ...item, quantity: remainder };
+        }
+        return item;
+      });
+
+      const activeItems = newItems.filter(it => it.status !== 'returned');
+      const allIssued = activeItems.every(it => it.status === 'issued');
+      const newStatus = allIssued ? 'issued' : order.status;
+
+      await updateOrder(order.id, { items: newItems, status: newStatus });
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, items: newItems, status: newStatus } : o));
     }
-    setOrders(prev => prev.map(o => invoiceOrders.find(io => io.id === o.id) ? { ...o, status: 'issued' } : o));
+
     setSelectedOrders(new Set());
     setInvoiceOrders(null);
     setBulkWorking(false);
