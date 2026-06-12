@@ -61,14 +61,22 @@ export default function AnalyticsSection() {
   const recentIn = movements.filter((m) => m.type === 'in').reduce((s, m) => s + m.quantity, 0);
   const recentOut = movements.filter((m) => m.type === 'out').reduce((s, m) => s + m.quantity, 0);
 
-  const totalRevenue = orders.reduce((s, o) => s + o.total, 0);
-  const totalMargin = orders.reduce((sum, o) => {
-    return sum + o.items.reduce((s, it) => {
-      if (!it.costPrice) return s;
-      return s + (it.price - it.costPrice) * it.quantity;
-    }, 0);
+  const issuedOrders = orders.filter(o => o.status === 'issued');
+  const totalRevenue = issuedOrders.reduce((s, o) => {
+    const issuedTotal = o.items
+      .filter(it => it.status !== 'returned')
+      .reduce((sum, it) => sum + it.price * it.quantity, 0);
+    return s + issuedTotal;
   }, 0);
-  const ordersWithCost = orders.filter(o => o.items.some(it => it.costPrice));
+  const totalMargin = issuedOrders.reduce((sum, o) => {
+    return sum + o.items
+      .filter(it => it.status !== 'returned')
+      .reduce((s, it) => {
+        if (!it.costPrice) return s;
+        return s + (it.price - it.costPrice) * it.quantity;
+      }, 0);
+  }, 0);
+  const ordersWithCost = issuedOrders.filter(o => o.items.some(it => it.costPrice && it.status !== 'returned'));
   const marginPercent = totalRevenue > 0 && ordersWithCost.length > 0
     ? Math.round((totalMargin / totalRevenue) * 100)
     : null;
@@ -214,8 +222,8 @@ export default function AnalyticsSection() {
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div>
-              <div className="text-xs text-muted-foreground mb-1">Заказов всего</div>
-              <div className="text-2xl font-bold font-mono-data">{orders.length}</div>
+              <div className="text-xs text-muted-foreground mb-1">Выдано заказов</div>
+              <div className="text-2xl font-bold font-mono-data">{issuedOrders.length}</div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground mb-1">Выручка</div>
