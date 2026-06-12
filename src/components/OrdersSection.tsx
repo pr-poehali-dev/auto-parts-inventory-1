@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
+import EmptyBackground from '@/components/ui/empty-background';
 import { ClientOrder, Client, OrderItem } from '@/data/mockData';
 import { getOrders, getClients, updateOrder, deleteOrder, getReturns, createReturn } from '@/api';
 import InvoiceModal from '@/components/InvoiceModal';
@@ -445,10 +446,11 @@ export default function OrdersSection() {
               <Icon name="Loader" size={24} className="animate-spin text-muted-foreground" />
             </div>
           ) : returns.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <Icon name="RotateCcw" size={40} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">Возвратов пока нет</p>
-            </div>
+            <EmptyBackground
+              icons={['RotateCcw', 'PackageX', 'ArrowLeftRight', 'Undo2', 'RefreshCcw', 'Ban', 'XCircle', 'PackageOpen']}
+              text="Возвратов пока нет"
+              minHeight="50vh"
+            />
           ) : (
             <div className="border border-border rounded-xl overflow-hidden bg-white">
               <div className="hidden md:grid grid-cols-[1.2fr_1.2fr_2fr_0.8fr_1fr] gap-3 px-4 py-2.5 bg-muted/40 border-b border-border text-xs text-muted-foreground font-medium">
