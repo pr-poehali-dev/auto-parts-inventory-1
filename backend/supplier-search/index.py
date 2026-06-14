@@ -2,6 +2,7 @@ import json
 import os
 import urllib.request
 import urllib.parse
+import urllib.error
 import psycopg2
 from datetime import datetime, timezone
 
@@ -13,13 +14,19 @@ CORS = {
 
 SCHEMA = os.environ.get('DB_SCHEMA', 'public')
 
+SUPPLIER_KEYS = [
+    'exist_login', 'exist_password',
+    'rossko_key1', 'rossko_key2',
+    'avtorus_token', 'emex_token', 'autodoc_token', 'armtek_token',
+]
+
 
 def resp(code, body):
     return {'statusCode': code, 'headers': {**CORS, 'Content-Type': 'application/json'}, 'body': json.dumps(body, ensure_ascii=False)}
 
 
-def get_user_tokens(session_token: str):
-    """Получить API-токены поставщиков из настроек пользователя по сессии"""
+def get_user_credentials(session_token: str):
+    """Получить учётные данные поставщиков из настроек по сессии"""
     conn = psycopg2.connect(os.environ['DATABASE_URL'])
     try:
         cur = conn.cursor()
@@ -29,34 +36,31 @@ def get_user_tokens(session_token: str):
             JOIN {SCHEMA}.users u ON u.id = s.user_id
             WHERE s.token = %s AND s.expires_at > %s AND u.is_active = TRUE
         """, (session_token, now))
-        row = cur.fetchone()
-        if not row:
+        if not cur.fetchone():
             return None
-        cur.execute(f"SELECT key, value FROM {SCHEMA}.company_settings WHERE key LIKE '%_token'")
+        keys_str = ', '.join(f"'{k}'" for k in SUPPLIER_KEYS)
+        cur.execute(f"SELECT key, value FROM {SCHEMA}.company_settings WHERE key IN ({keys_str})")
         rows = cur.fetchall()
         return {r[0]: r[1] for r in rows if r[1]}
     finally:
         conn.close()
 
 
-def search_avtorus(article: str, token: str):
-    """Поиск по артикулу через API Авторусь"""
+def search_avtorus(article: str, token: str) -> list:
+    """Поиск по артикулу через API Авторусь (Bearer token)"""
     url = f"https://public.api.avtorus.ru/api/v1/product/ProductOffersByArticle?article={urllib.parse.quote(article)}"
-    request = urllib.request.Request(url, headers={
-        'Authorization': f'Bearer {token}',
-        'Content-Type': 'application/json',
-    })
+    req = urllib.request.Request(url, headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'})
     try:
-        with urllib.request.urlopen(request, timeout=10) as r:
+        with urllib.request.urlopen(req, timeout=10) as r:
             data = json.loads(r.read())
             items = data if isinstance(data, list) else data.get('data', data.get('items', []))
             results = []
             for item in items[:20]:
                 results.append({
                     'source': 'Авторусь',
-                    'article': item.get('article', ''),
-                    'brand': item.get('brand', item.get('brandName', '')),
-                    'name': item.get('name', item.get('description', '')),
+                    'article': str(item.get('article', '')),
+                    'brand': str(item.get('brand', item.get('brandName', ''))),
+                    'name': str(item.get('name', item.get('description', ''))),
                     'price': float(item.get('price', item.get('retailPrice', 0)) or 0),
                     'quantity': int(item.get('quantity', item.get('count', 0)) or 0),
                     'delivery_days': str(item.get('deliveryDays', item.get('delivery', '')) or ''),
@@ -67,8 +71,85 @@ def search_avtorus(article: str, token: str):
         return []
 
 
+def search_exist(article: str, login: str, password: str) -> list:
+    """Поиск по артикулу через Exist.ru REST API (Basic Auth)"""
+    encoded = urllib.parse.quote(article)
+    url = f"https://api.exist.ru/api/v1/search?q={encoded}&pageSize=20"
+    import base64
+    creds = base64.b64encode(f"{login}:{password}".encode()).decode()
+    req = urllib.request.Request(url, headers={
+        'Authorization': f'Basic {creds}',
+        'Content-Type': 'application/json',
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read())
+            items = data if isinstance(data, list) else data.get('items', data.get('data', data.get('result', [])))
+            results = []
+            for item in items[:20]:
+                results.append({
+                    'source': 'Exist.ru',
+                    'article': str(item.get('article', item.get('partNumber', ''))),
+                    'brand': str(item.get('brand', item.get('brandName', ''))),
+                    'name': str(item.get('name', item.get('description', ''))),
+                    'price': float(item.get('price', item.get('retailPrice', 0)) or 0),
+                    'quantity': int(item.get('quantity', item.get('count', item.get('stock', 0))) or 0),
+                    'delivery_days': str(item.get('deliveryDays', item.get('deliveryTime', '')) or ''),
+                    'warehouse': str(item.get('warehouse', item.get('warehouseName', '')) or ''),
+                })
+            return results
+    except Exception:
+        return []
+
+
+def search_rossko(article: str, key1: str, key2: str) -> list:
+    """Поиск по артикулу через Rossko API (KEY1 + KEY2)"""
+    url = "https://api.rossko.ru/service/v2.1/GetSearch"
+    payload = json.dumps({
+        'KEY1': key1,
+        'KEY2': key2,
+        'text': article,
+        'delivery_id': '1',
+    }).encode()
+    req = urllib.request.Request(url, data=payload, headers={'Content-Type': 'application/json'})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read())
+            items = data.get('data', {})
+            if isinstance(items, dict):
+                items = items.get('goods', [])
+            if not isinstance(items, list):
+                items = []
+            results = []
+            for item in items[:20]:
+                price = 0.0
+                stocks = item.get('stocks', [])
+                if stocks:
+                    price = float(stocks[0].get('price', 0) or 0)
+                    qty = int(stocks[0].get('count', 0) or 0)
+                    delivery = str(stocks[0].get('delivery', '') or '')
+                    warehouse = str(stocks[0].get('address', '') or '')
+                else:
+                    qty = 0
+                    delivery = ''
+                    warehouse = ''
+                results.append({
+                    'source': 'Rossko',
+                    'article': str(item.get('partnumber', '')),
+                    'brand': str(item.get('brand', '')),
+                    'name': str(item.get('name', '')),
+                    'price': price,
+                    'quantity': qty,
+                    'delivery_days': delivery,
+                    'warehouse': warehouse,
+                })
+            return results
+    except Exception:
+        return []
+
+
 def handler(event: dict, context) -> dict:
-    """Поиск запчастей у поставщиков по API-токенам пользователя"""
+    """Поиск запчастей у поставщиков по сохранённым API-ключам пользователя"""
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS, 'body': ''}
 
@@ -81,13 +162,23 @@ def handler(event: dict, context) -> dict:
     if not article:
         return resp(400, {'error': 'Укажите артикул'})
 
-    tokens = get_user_tokens(session_token)
-    if tokens is None:
+    creds = get_user_credentials(session_token)
+    if creds is None:
         return resp(401, {'error': 'Сессия истекла'})
 
     results = []
+    connected = []
 
-    if tokens.get('avtorus_token'):
-        results += search_avtorus(article, tokens['avtorus_token'])
+    if creds.get('avtorus_token'):
+        connected.append('avtorus')
+        results += search_avtorus(article, creds['avtorus_token'])
 
-    return resp(200, {'results': results, 'connected': list(tokens.keys())})
+    if creds.get('exist_login') and creds.get('exist_password'):
+        connected.append('exist')
+        results += search_exist(article, creds['exist_login'], creds['exist_password'])
+
+    if creds.get('rossko_key1') and creds.get('rossko_key2'):
+        connected.append('rossko')
+        results += search_rossko(article, creds['rossko_key1'], creds['rossko_key2'])
+
+    return resp(200, {'results': results, 'connected': connected})

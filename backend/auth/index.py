@@ -319,8 +319,10 @@ def handler(event: dict, context) -> dict:
                 return resp(401, {'error': 'Сессия истекла'})
 
             allowed = ['name', 'inn', 'ogrn', 'address', 'phone', 'email',
-                       'exist_token', 'emex_token', 'autodoc_token',
-                       'rossko_token', 'avtorus_token', 'armtek_token']
+                       'exist_login', 'exist_password',
+                       'emex_token', 'autodoc_token',
+                       'rossko_key1', 'rossko_key2',
+                       'avtorus_token', 'armtek_token']
             for key in allowed:
                 if key in body:
                     cur.execute(f"""

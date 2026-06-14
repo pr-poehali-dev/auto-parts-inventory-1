@@ -61,10 +61,12 @@ export default function ProfileMenu({ registerOpenIntegrations }: { registerOpen
   const [companySuccess, setCompanySuccess] = useState('');
 
   const [apiKeys, setApiKeys] = useState({
-    exist_token: '',
+    exist_login: '',
+    exist_password: '',
     emex_token: '',
     autodoc_token: '',
-    rossko_token: '',
+    rossko_key1: '',
+    rossko_key2: '',
     avtorus_token: '',
     armtek_token: '',
   });
@@ -298,27 +300,66 @@ export default function ProfileMenu({ registerOpenIntegrations }: { registerOpen
                 >
                   Нужна помощь с получением токена?
                 </a>
-                <form onSubmit={handleApiSave} className="flex flex-col gap-4 mt-2">
+                <form onSubmit={handleApiSave} className="flex flex-col gap-5 mt-2">
+
+                  {/* Авторусь */}
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Авторусь (ARUS)</span>
+                      <a href="https://avtorus.ru/personal/api/" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline">Получить токен</a>
+                    </div>
+                    <PasswordInput value={apiKeys.avtorus_token} onChange={(v) => setApiKeys((k) => ({ ...k, avtorus_token: v }))} placeholder="Bearer-токен" />
+                    <span className="text-xs text-muted-foreground">Профиль → Настройки API → Сгенерировать токен</span>
+                  </div>
+
+                  {/* Exist.ru */}
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Exist.ru</span>
+                      <a href="https://exist.ru/cabinet/" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline">Личный кабинет</a>
+                    </div>
+                    <input
+                      type="text"
+                      value={apiKeys.exist_login}
+                      onChange={(e) => setApiKeys((k) => ({ ...k, exist_login: e.target.value }))}
+                      placeholder="Логин (email)"
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      autoComplete="off"
+                    />
+                    <PasswordInput value={apiKeys.exist_password} onChange={(v) => setApiKeys((k) => ({ ...k, exist_password: v }))} placeholder="Пароль от Exist.ru" />
+                    <span className="text-xs text-muted-foreground">Логин и пароль от вашего аккаунта Exist.ru</span>
+                  </div>
+
+                  {/* Rossko */}
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Rossko</span>
+                      <a href="https://rossko.ru" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline">Запросить ключи</a>
+                    </div>
+                    <input
+                      type="text"
+                      value={apiKeys.rossko_key1}
+                      onChange={(e) => setApiKeys((k) => ({ ...k, rossko_key1: e.target.value }))}
+                      placeholder="KEY1"
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      autoComplete="off"
+                    />
+                    <PasswordInput value={apiKeys.rossko_key2} onChange={(v) => setApiKeys((k) => ({ ...k, rossko_key2: v }))} placeholder="KEY2" />
+                    <span className="text-xs text-muted-foreground">Два ключа — запрашиваются у менеджера Rossko</span>
+                  </div>
+
+                  {/* Emex, Autodoc, Armtek — по токену */}
                   {([
-                    { field: 'exist_token' as const, label: 'Exist.ru', hint: 'Личный кабинет → Настройки → API', url: 'https://exist.ru/cabinet/settings/api/' },
-                    { field: 'emex_token' as const, label: 'Emex.ru', hint: 'Поддержка Emex выдаёт токен по запросу', url: 'https://emex.ru' },
+                    { field: 'emex_token' as const, label: 'Emex.ru', hint: 'Токен выдаёт поддержка Emex по запросу', url: 'https://emex.ru' },
                     { field: 'autodoc_token' as const, label: 'Autodoc.ru', hint: 'Личный кабинет → Интеграция → API', url: 'https://autodoc.ru' },
-                    { field: 'rossko_token' as const, label: 'Rossko', hint: 'Обратитесь к менеджеру Rossko', url: 'https://rossko.ru' },
-                    { field: 'avtorus_token' as const, label: 'Авторусь (ARUS)', hint: 'Профиль → Настройки API → Сгенерировать токен', url: 'https://public.api.avtorus.ru' },
-                    { field: 'armtek_token' as const, label: 'Armtek', hint: 'Обратитесь к менеджеру Armtek', url: 'https://armtek.ru' },
+                    { field: 'armtek_token' as const, label: 'Armtek', hint: 'Токен выдаёт менеджер Armtek', url: 'https://armtek.ru' },
                   ]).map(({ field, label, hint, url }) => (
                     <div key={field} className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">{label}</span>
-                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline">
-                          Получить токен
-                        </a>
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline">Получить токен</a>
                       </div>
-                      <PasswordInput
-                        value={apiKeys[field]}
-                        onChange={(v) => setApiKeys((k) => ({ ...k, [field]: v }))}
-                        placeholder="Вставьте API-токен"
-                      />
+                      <PasswordInput value={apiKeys[field]} onChange={(v) => setApiKeys((k) => ({ ...k, [field]: v }))} placeholder="API-токен" />
                       <span className="text-xs text-muted-foreground">{hint}</span>
                     </div>
                   ))}
