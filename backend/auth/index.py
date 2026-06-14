@@ -320,7 +320,7 @@ def handler(event: dict, context) -> dict:
 
             allowed = ['name', 'inn', 'ogrn', 'address', 'phone', 'email',
                        'exist_login', 'exist_password',
-                       'emex_token', 'autodoc_token',
+                       'emex_login', 'emex_password', 'autodoc_token',
                        'rossko_key1', 'rossko_key2',
                        'avtorus_token', 'armtek_token']
             for key in allowed:

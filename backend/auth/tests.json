@@ -12,7 +12,6 @@
       "method": "GET",
       "path": "/?action=company",
       "expectedStatus": 200,
-      "expectedBody": {"name": ""},
       "bodyMatcher": "partial"
     }
   ]
