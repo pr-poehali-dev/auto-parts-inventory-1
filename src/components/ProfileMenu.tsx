@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { useAuth, User } from '@/context/AuthContext';
-import { authUpdate, getCompanySettings, saveCompanySettings, sendFeedback } from '@/api';
+import { authUpdate, getCompanySettings, saveCompanySettings, sendFeedback, checkSupplierConnection } from '@/api';
 
 interface UpdateResult { user: User }
 
@@ -72,6 +72,8 @@ export default function ProfileMenu({ registerOpenIntegrations }: { registerOpen
   });
   const [apiSaving, setApiSaving] = useState(false);
   const [apiSuccess, setApiSuccess] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [checkResults, setCheckResults] = useState<{ name: string; ok: boolean; error?: string }[] | null>(null);
 
   useEffect(() => {
     getCompanySettings().then((d: Record<string, string>) => setCompany(c => ({ ...c, ...d }))).catch(() => {});
@@ -369,14 +371,52 @@ export default function ProfileMenu({ registerOpenIntegrations }: { registerOpen
                       {apiSuccess}
                     </div>
                   )}
-                  <button
-                    type="submit"
-                    disabled={apiSaving}
-                    className="w-full bg-foreground text-background rounded-lg py-2.5 text-sm font-semibold hover:bg-foreground/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
-                  >
-                    {apiSaving && <Icon name="Loader" size={14} className="animate-spin" />}
-                    Сохранить токены
-                  </button>
+
+                  {/* Результаты проверки */}
+                  {checkResults !== null && (
+                    <div className="flex flex-col gap-1.5">
+                      {checkResults.length === 0 ? (
+                        <div className="text-xs text-muted-foreground text-center py-2">Нет сохранённых подключений — сначала сохраните токены</div>
+                      ) : checkResults.map((r, i) => (
+                        <div key={i} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${r.ok ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                          <Icon name={r.ok ? 'CheckCircle' : 'XCircle'} size={14} className="shrink-0" />
+                          <span className="font-medium">{r.name}</span>
+                          {r.ok ? <span className="text-xs">— подключён</span> : <span className="text-xs">— {r.error}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={checking}
+                      onClick={async () => {
+                        setChecking(true);
+                        setCheckResults(null);
+                        try {
+                          const data = await checkSupplierConnection(token!);
+                          setCheckResults(data.connected);
+                        } catch {
+                          setCheckResults([]);
+                        } finally {
+                          setChecking(false);
+                        }
+                      }}
+                      className="flex-1 border border-border rounded-lg py-2.5 text-sm font-medium hover:bg-muted/40 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                    >
+                      {checking ? <Icon name="Loader" size={14} className="animate-spin" /> : <Icon name="Wifi" size={14} />}
+                      Проверить
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={apiSaving}
+                      className="flex-1 bg-foreground text-background rounded-lg py-2.5 text-sm font-semibold hover:bg-foreground/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                    >
+                      {apiSaving && <Icon name="Loader" size={14} className="animate-spin" />}
+                      Сохранить
+                    </button>
+                  </div>
                 </form>
               </div>
             )}

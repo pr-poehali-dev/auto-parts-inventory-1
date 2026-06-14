@@ -148,6 +148,57 @@ def search_rossko(article: str, key1: str, key2: str) -> list:
         return []
 
 
+def check_avtorus(token: str) -> dict:
+    """Проверка подключения к Авторусь"""
+    url = "https://public.api.avtorus.ru/api/v1/profile/clients"
+    req = urllib.request.Request(url, headers={'Authorization': f'Bearer {token}'})
+    try:
+        with urllib.request.urlopen(req, timeout=8) as r:
+            r.read()
+            return {'name': 'Авторусь', 'ok': True}
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            return {'name': 'Авторусь', 'ok': False, 'error': 'Неверный токен'}
+        return {'name': 'Авторусь', 'ok': False, 'error': f'Ошибка {e.code}'}
+    except Exception as e:
+        return {'name': 'Авторусь', 'ok': False, 'error': 'Нет связи с сервером'}
+
+
+def check_exist(login: str, password: str) -> dict:
+    """Проверка подключения к Exist.ru"""
+    import base64
+    creds = base64.b64encode(f"{login}:{password}".encode()).decode()
+    url = "https://api.exist.ru/api/v1/info"
+    req = urllib.request.Request(url, headers={'Authorization': f'Basic {creds}'})
+    try:
+        with urllib.request.urlopen(req, timeout=8) as r:
+            r.read()
+            return {'name': 'Exist.ru', 'ok': True}
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403):
+            return {'name': 'Exist.ru', 'ok': False, 'error': 'Неверный логин или пароль'}
+        return {'name': 'Exist.ru', 'ok': False, 'error': f'Ошибка {e.code}'}
+    except Exception:
+        return {'name': 'Exist.ru', 'ok': False, 'error': 'Нет связи с сервером'}
+
+
+def check_rossko(key1: str, key2: str) -> dict:
+    """Проверка подключения к Rossko"""
+    url = "https://api.rossko.ru/service/v2.1/GetDeliveries"
+    payload = json.dumps({'KEY1': key1, 'KEY2': key2}).encode()
+    req = urllib.request.Request(url, data=payload, headers={'Content-Type': 'application/json'})
+    try:
+        with urllib.request.urlopen(req, timeout=8) as r:
+            data = json.loads(r.read())
+            if data.get('success') is False or 'error' in str(data.get('message', '')).lower():
+                return {'name': 'Rossko', 'ok': False, 'error': 'Неверные ключи KEY1/KEY2'}
+            return {'name': 'Rossko', 'ok': True}
+    except urllib.error.HTTPError as e:
+        return {'name': 'Rossko', 'ok': False, 'error': f'Ошибка {e.code}'}
+    except Exception:
+        return {'name': 'Rossko', 'ok': False, 'error': 'Нет связи с сервером'}
+
+
 def handler(event: dict, context) -> dict:
     """Поиск запчастей у поставщиков по сохранённым API-ключам пользователя"""
     if event.get('httpMethod') == 'OPTIONS':
@@ -157,14 +208,30 @@ def handler(event: dict, context) -> dict:
     if not session_token:
         return resp(401, {'error': 'Не авторизован'})
 
-    params = event.get('queryStringParameters') or {}
-    article = params.get('article', '').strip()
-    if not article:
-        return resp(400, {'error': 'Укажите артикул'})
-
     creds = get_user_credentials(session_token)
     if creds is None:
         return resp(401, {'error': 'Сессия истекла'})
+
+    params = event.get('queryStringParameters') or {}
+    action = params.get('action', '')
+
+    # ── ПРОВЕРКА ПОДКЛЮЧЕНИЯ ──────────────────────────────
+    if action == 'check':
+        checks = []
+        if creds.get('avtorus_token'):
+            checks.append(check_avtorus(creds['avtorus_token']))
+        if creds.get('exist_login') and creds.get('exist_password'):
+            checks.append(check_exist(creds['exist_login'], creds['exist_password']))
+        if creds.get('rossko_key1') and creds.get('rossko_key2'):
+            checks.append(check_rossko(creds['rossko_key1'], creds['rossko_key2']))
+        if not checks:
+            return resp(200, {'connected': [], 'message': 'Нет подключённых поставщиков'})
+        return resp(200, {'connected': checks})
+
+    # ── ПОИСК ─────────────────────────────────────────────
+    article = params.get('article', '').strip()
+    if not article:
+        return resp(400, {'error': 'Укажите артикул'})
 
     results = []
     connected = []

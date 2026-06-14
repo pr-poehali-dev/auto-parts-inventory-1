@@ -78,6 +78,15 @@ export const saveCompanySettings = (token: string, data: Record<string, string>)
   authReq(`${AUTH_URL}?action=company`, 'POST', data, token);
 
 // ── SUPPLIER SEARCH ─────────────────────────────────────
+export const checkSupplierConnection = (token: string) => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', 'X-Session-Token': token };
+  return fetch(`${SUPPLIER_SEARCH_URL}?action=check`, { headers })
+    .then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка');
+      return data as { connected: { name: string; ok: boolean; error?: string }[] };
+    });
+};
 export const searchSuppliers = (article: string, token: string) => {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', 'X-Session-Token': token };
   return fetch(`${SUPPLIER_SEARCH_URL}?article=${encodeURIComponent(article)}`, { headers })
