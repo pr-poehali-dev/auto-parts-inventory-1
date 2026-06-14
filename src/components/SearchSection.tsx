@@ -77,6 +77,7 @@ export default function SearchSection({ onSelectPart, onOpenApiSettings }: Searc
   const [supplierConnected, setSupplierConnected] = useState<string[]>([]);
   const [externalLoading, setExternalLoading] = useState(false);
   const [externalExpanded, setExternalExpanded] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const externalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -154,6 +155,82 @@ export default function SearchSection({ onSelectPart, onOpenApiSettings }: Searc
           <button onClick={() => handleSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
             <Icon name="X" size={14} />
           </button>
+        )}
+      </div>
+
+      {/* Инструкция по API поставщиков */}
+      <div className="border border-border rounded-lg overflow-hidden bg-white">
+        <button
+          onClick={() => setGuideOpen((v) => !v)}
+          className="w-full px-4 py-2.5 flex items-center gap-2 hover:bg-muted/30 transition-colors text-left"
+        >
+          <Icon name="BookOpen" size={14} className="text-muted-foreground shrink-0" />
+          <span className="text-xs text-muted-foreground flex-1">Как подключить поставщиков и получить API-ключи?</span>
+          <Icon name={guideOpen ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground shrink-0" />
+        </button>
+
+        {guideOpen && (
+          <div className="border-t border-border px-4 py-4 space-y-4 text-sm">
+            <p className="text-muted-foreground text-xs">
+              Чтобы система показывала цены и наличие у поставщиков — нужно получить API-ключ и добавить его в{' '}
+              <button onClick={onOpenApiSettings} className="text-blue-600 underline">настройках</button>.
+              Обычный логин/пароль не подходит — нужен именно API-доступ.
+            </p>
+
+            <div className="space-y-3">
+              {/* Авторусь */}
+              <div className="rounded-lg border border-border p-3 space-y-1">
+                <div className="font-medium text-sm flex items-center gap-2">
+                  Авторусь (ARUS)
+                  <span className="text-xs text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded font-normal">самый простой</span>
+                </div>
+                <ol className="text-xs text-muted-foreground space-y-0.5 list-decimal list-inside">
+                  <li>Зарегистрируйтесь на <a href="https://avtorus.ru" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">avtorus.ru</a></li>
+                  <li>Войдите в личный кабинет → «Профиль» → «Настройки API»</li>
+                  <li>Нажмите «Сгенерировать токен» — скопируйте его</li>
+                  <li>Вставьте в настройках PartKeeper в поле «Авторусь»</li>
+                </ol>
+              </div>
+
+              {/* Exist.ru */}
+              <div className="rounded-lg border border-border p-3 space-y-1">
+                <div className="font-medium text-sm">Exist.ru</div>
+                <ol className="text-xs text-muted-foreground space-y-0.5 list-decimal list-inside">
+                  <li>Нужен корпоративный аккаунт (не обычный покупательский)</li>
+                  <li>Позвоните менеджеру Exist или напишите на <a href="mailto:api@exist.ru" className="text-blue-600 underline">api@exist.ru</a></li>
+                  <li>Запросите «API-доступ для интеграции» — укажите ИНН и название компании</li>
+                  <li>После подтверждения вам пришлют логин и пароль от API (они отличаются от обычных)</li>
+                </ol>
+              </div>
+
+              {/* Rossko */}
+              <div className="rounded-lg border border-border p-3 space-y-1">
+                <div className="font-medium text-sm">Rossko</div>
+                <ol className="text-xs text-muted-foreground space-y-0.5 list-decimal list-inside">
+                  <li>Зарегистрируйтесь как юрлицо на <a href="https://rossko.ru" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">rossko.ru</a></li>
+                  <li>Свяжитесь с вашим менеджером Rossko и запросите «ключи для API» (KEY1 и KEY2)</li>
+                  <li>Вставьте оба ключа в настройках PartKeeper в поля «Rossko KEY1» и «KEY2»</li>
+                </ol>
+              </div>
+
+              {/* Armtek */}
+              <div className="rounded-lg border border-border p-3 space-y-1">
+                <div className="font-medium text-sm">Armtek</div>
+                <ol className="text-xs text-muted-foreground space-y-0.5 list-decimal list-inside">
+                  <li>Нужен активный договор с Armtek</li>
+                  <li>Напишите менеджеру или в поддержку: запросите «токен для API-интеграции»</li>
+                  <li>Вставьте полученный токен в настройках PartKeeper</li>
+                </ol>
+              </div>
+            </div>
+
+            <button
+              onClick={() => { setGuideOpen(false); onOpenApiSettings(); }}
+              className="w-full bg-foreground text-background rounded-lg py-2 text-xs font-semibold hover:bg-foreground/90 transition-colors"
+            >
+              Перейти в настройки и добавить ключи
+            </button>
+          </div>
         )}
       </div>
 

@@ -306,16 +306,11 @@ export default function ProfileMenu({ registerOpenIntegrations }: { registerOpen
             {settingsTab === 'integrations' && (
               <div className="px-6 py-5">
                 <p className="text-xs text-muted-foreground mb-1">
-                  Вставьте API-токен от поставщика — его выдают по запросу в личном кабинете магазина. После этого система будет показывать цены и сроки доставки прямо в поиске.
+                  Вставьте API-ключи от поставщиков. Обычный логин/пароль не подходит — нужен именно API-доступ, который запрашивается у менеджера или по email.
                 </p>
-                <a
-                  href="https://t.me/partkeeper_support"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-blue-600 underline mb-4 inline-block"
-                >
-                  Нужна помощь с получением токена?
-                </a>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Инструкцию по получению ключей смотрите прямо на странице поиска — нажмите «Как подключить поставщиков».
+                </p>
                 <form onSubmit={handleApiSave} className="flex flex-col gap-5 mt-2">
 
                   {/* Авторусь */}
@@ -332,18 +327,18 @@ export default function ProfileMenu({ registerOpenIntegrations }: { registerOpen
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Exist.ru</span>
-                      <a href="https://exist.ru/cabinet/" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline">Личный кабинет</a>
+                      <a href="mailto:api@exist.ru" className="text-xs text-blue-600 underline">Запросить доступ</a>
                     </div>
                     <input
                       type="text"
                       value={apiKeys.exist_login}
                       onChange={(e) => setApiKeys((k) => ({ ...k, exist_login: e.target.value }))}
-                      placeholder="Логин (email)"
+                      placeholder="API-логин (не обычный email)"
                       className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                       autoComplete="off"
                     />
-                    <PasswordInput value={apiKeys.exist_password} onChange={(v) => setApiKeys((k) => ({ ...k, exist_password: v }))} placeholder="Пароль от Exist.ru" />
-                    <span className="text-xs text-muted-foreground">Логин и пароль от вашего аккаунта Exist.ru</span>
+                    <PasswordInput value={apiKeys.exist_password} onChange={(v) => setApiKeys((k) => ({ ...k, exist_password: v }))} placeholder="API-пароль" />
+                    <span className="text-xs text-amber-600">Нужен корпоративный API-доступ — запросите у менеджера Exist или напишите на api@exist.ru</span>
                   </div>
 
                   {/* Rossko */}
