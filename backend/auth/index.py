@@ -318,7 +318,9 @@ def handler(event: dict, context) -> dict:
             if not cur.fetchone():
                 return resp(401, {'error': 'Сессия истекла'})
 
-            allowed = ['name', 'inn', 'ogrn', 'address', 'phone', 'email']
+            allowed = ['name', 'inn', 'ogrn', 'address', 'phone', 'email',
+                       'exist_token', 'emex_token', 'autodoc_token',
+                       'rossko_token', 'avtorus_token', 'armtek_token']
             for key in allowed:
                 if key in body:
                     cur.execute(f"""

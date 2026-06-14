@@ -1,6 +1,7 @@
 import func2url from '../backend/func2url.json';
 
 const PARTS_URL = func2url.parts;
+const SUPPLIER_SEARCH_URL = (func2url as Record<string, string>)['supplier-search'];
 const CLIENTS_URL = func2url.clients;
 const ORDERS_URL = func2url.orders;
 const DECODE_VIN_URL = (func2url as Record<string, string>)['decode-vin'];
@@ -75,6 +76,27 @@ export const getCompanySettings = () =>
   authReq(`${AUTH_URL}?action=company`, 'GET');
 export const saveCompanySettings = (token: string, data: Record<string, string>) =>
   authReq(`${AUTH_URL}?action=company`, 'POST', data, token);
+
+// ── SUPPLIER SEARCH ─────────────────────────────────────
+export const searchSuppliers = (article: string, token: string) => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', 'X-Session-Token': token };
+  return fetch(`${SUPPLIER_SEARCH_URL}?article=${encodeURIComponent(article)}`, { headers })
+    .then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка');
+      return data as { results: SupplierResult[]; connected: string[] };
+    });
+};
+export interface SupplierResult {
+  source: string;
+  article: string;
+  brand: string;
+  name: string;
+  price: number;
+  quantity: number;
+  delivery_days: string;
+  warehouse: string;
+}
 
 // ── PAYMENT ─────────────────────────────────────────────
 const PAYMENT_URL = (func2url as Record<string, string>)['payment'];

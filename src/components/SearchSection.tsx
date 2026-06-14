@@ -2,25 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import Icon from '@/components/ui/icon';
 import EmptyBackground from '@/components/ui/empty-background';
 import { Part } from '@/data/mockData';
-import { getParts } from '@/api';
-
-interface ExternalAnalog {
-  article: string;
-  brand: string;
-  name: string;
-  source: 'exist' | 'emex' | 'partsapi';
-}
-
-// Заглушка — будет заменена на реальный запрос к PartsAPI после подключения ключа
-async function fetchExternalAnalogs(query: string): Promise<ExternalAnalog[]> {
-  await new Promise((r) => setTimeout(r, 900));
-  if (query.length < 4) return [];
-  return [
-    { article: 'BP02C', brand: 'SANGSIN', name: 'Колодки тормозные передние', source: 'exist' },
-    { article: 'GDB1234', brand: 'FERODO', name: 'Колодки дисковые', source: 'emex' },
-    { article: '0986494031', brand: 'BOSCH', name: 'Тормозные колодки', source: 'partsapi' },
-  ];
-}
+import { getParts, searchSuppliers, SupplierResult } from '@/api';
+import { useAuth } from '@/context/AuthContext';
 
 interface SearchSectionProps {
   onSelectPart: (part: Part) => void;
@@ -85,11 +68,13 @@ const stockBadge = (qty: number, min: number) => {
 };
 
 export default function SearchSection({ onSelectPart, onOpenApiSettings }: SearchSectionProps) {
+  const { token } = useAuth();
   const [allParts, setAllParts] = useState<Part[]>([]);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult>({ direct: [], analogsByList: [], analogsByOem: [], oemMatchQuery: false });
   const [searched, setSearched] = useState(false);
-  const [externalAnalogs, setExternalAnalogs] = useState<ExternalAnalog[]>([]);
+  const [supplierResults, setSupplierResults] = useState<SupplierResult[]>([]);
+  const [supplierConnected, setSupplierConnected] = useState<string[]>([]);
   const [externalLoading, setExternalLoading] = useState(false);
   const [externalExpanded, setExternalExpanded] = useState(false);
   const externalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -100,7 +85,7 @@ export default function SearchSection({ onSelectPart, onOpenApiSettings }: Searc
 
   const handleSearch = (value: string) => {
     setQuery(value);
-    setExternalAnalogs([]);
+    setSupplierResults([]);
     setExternalExpanded(false);
     if (value.trim().length > 1) {
       setResults(buildResults(allParts, value));
@@ -110,15 +95,15 @@ export default function SearchSection({ onSelectPart, onOpenApiSettings }: Searc
       setExternalLoading(false);
       return;
     }
-    // Запрос внешних аналогов с задержкой — не дёргаем при каждой букве
     if (externalTimerRef.current) clearTimeout(externalTimerRef.current);
-    if (value.trim().length >= 4) {
+    if (value.trim().length >= 4 && token) {
       setExternalLoading(true);
       externalTimerRef.current = setTimeout(() => {
-        fetchExternalAnalogs(value.trim()).then((data) => {
-          setExternalAnalogs(data);
+        searchSuppliers(value.trim(), token).then((data) => {
+          setSupplierResults(data.results);
+          setSupplierConnected(data.connected);
           setExternalLoading(false);
-        });
+        }).catch(() => setExternalLoading(false));
       }, 800);
     }
   };
@@ -224,7 +209,7 @@ export default function SearchSection({ onSelectPart, onOpenApiSettings }: Searc
         </div>
       )}
 
-      {/* Аналоги из интернета (Exist / Emex) */}
+      {/* Предложения от поставщиков */}
       {searched && query.trim().length >= 4 && (
         <div className="bg-white border border-border rounded-lg overflow-hidden">
           <button
@@ -233,13 +218,17 @@ export default function SearchSection({ onSelectPart, onOpenApiSettings }: Searc
           >
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <Icon name="Globe" size={14} className="text-blue-500 shrink-0" />
-              <span className="text-xs font-medium text-blue-700 uppercase tracking-wide">Аналоги из интернета</span>
-              <span className="text-xs text-muted-foreground ml-1">Exist · Emex</span>
-              {externalLoading && (
-                <span className="text-xs text-muted-foreground animate-pulse ml-1">поиск...</span>
+              <span className="text-xs font-medium text-blue-700 uppercase tracking-wide">Предложения поставщиков</span>
+              {supplierConnected.length > 0 && (
+                <span className="text-xs text-muted-foreground ml-1">
+                  {supplierConnected.map(k => k.replace('_token', '')).join(' · ')}
+                </span>
               )}
-              {!externalLoading && externalAnalogs.length > 0 && (
-                <span className="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded ml-1">{externalAnalogs.length}</span>
+              {externalLoading && (
+                <span className="text-xs text-muted-foreground animate-pulse ml-1">ищем цены...</span>
+              )}
+              {!externalLoading && supplierResults.length > 0 && (
+                <span className="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded ml-1">{supplierResults.length}</span>
               )}
             </div>
             <Icon name={externalExpanded ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground shrink-0" />
@@ -250,40 +239,42 @@ export default function SearchSection({ onSelectPart, onOpenApiSettings }: Searc
               {externalLoading ? (
                 <div className="px-4 py-6 text-center text-sm text-muted-foreground border-t border-border">
                   <Icon name="Loader" size={20} className="mx-auto mb-2 opacity-40 animate-spin" />
-                  Ищем аналоги на Exist и Emex...
+                  Запрашиваем цены у поставщиков...
                 </div>
-              ) : externalAnalogs.length === 0 ? (
+              ) : supplierConnected.length === 0 ? (
                 <div className="px-4 py-6 text-center border-t border-border">
-                  <div className="text-sm text-muted-foreground">Аналоги не найдены</div>
-                  <div className="text-xs text-muted-foreground/60 mt-1">
-                    Требуется подключение PartsAPI — обратитесь к разработчику
-                  </div>
+                  <div className="text-sm text-muted-foreground">Нет подключённых поставщиков</div>
+                  <button
+                    onClick={onOpenApiSettings}
+                    className="text-xs text-blue-600 underline mt-1 hover:text-blue-800 transition-colors"
+                  >
+                    Добавить API-токен в настройках
+                  </button>
+                </div>
+              ) : supplierResults.length === 0 ? (
+                <div className="px-4 py-6 text-center border-t border-border">
+                  <div className="text-sm text-muted-foreground">Ничего не найдено у поставщиков</div>
                 </div>
               ) : (
                 <div className="border-t border-border divide-y divide-border">
-                  {externalAnalogs.map((a, i) => (
+                  {supplierResults.map((r, i) => (
                     <div key={i} className="px-4 py-3 flex items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono-data font-medium text-sm">{a.article}</span>
-                          <span className="text-xs text-muted-foreground">{a.brand}</span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
-                            a.source === 'exist' ? 'bg-orange-50 text-orange-700' :
-                            a.source === 'emex' ? 'bg-purple-50 text-purple-700' :
-                            'bg-blue-50 text-blue-700'
-                          }`}>
-                            {a.source === 'exist' ? 'Exist' : a.source === 'emex' ? 'Emex' : 'TecDoc'}
-                          </span>
+                          <span className="font-mono-data font-medium text-sm">{r.article}</span>
+                          <span className="text-xs text-muted-foreground">{r.brand}</span>
+                          <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-blue-50 text-blue-700">{r.source}</span>
                         </div>
-                        <div className="text-sm text-muted-foreground truncate mt-0.5">{a.name}</div>
+                        <div className="text-sm text-muted-foreground truncate mt-0.5">{r.name}</div>
+                        {r.warehouse && <div className="text-xs text-muted-foreground/60 mt-0.5">{r.warehouse}</div>}
                       </div>
-                      <div className="text-xs text-muted-foreground shrink-0 italic">нет на складе</div>
+                      <div className="text-right shrink-0">
+                        {r.price > 0 && <div className="text-sm font-semibold">{r.price.toLocaleString()} ₽</div>}
+                        {r.quantity > 0 && <div className="text-xs text-emerald-600">{r.quantity} шт</div>}
+                        {r.delivery_days && <div className="text-xs text-muted-foreground">{r.delivery_days}</div>}
+                      </div>
                     </div>
                   ))}
-                  <div className="px-4 py-2 bg-amber-50 text-xs text-amber-700 flex items-center gap-1.5">
-                    <Icon name="Info" size={12} />
-                    Это демо-данные. Подключи PartsAPI для реального поиска.
-                  </div>
                 </div>
               )}
             </>
