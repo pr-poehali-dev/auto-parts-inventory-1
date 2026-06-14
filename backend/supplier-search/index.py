@@ -3,6 +3,7 @@ import os
 import urllib.request
 import urllib.parse
 import urllib.error
+import xml.etree.ElementTree as ET
 import psycopg2
 from datetime import datetime, timezone
 
@@ -183,7 +184,6 @@ def search_emex(article: str, login: str, password: str) -> list:
             raw = r.read().decode('utf-8')
             print(f"[EMEX] status={r.status} len={len(raw)}")
             print(f"[EMEX] body={raw[:800]}")
-            import xml.etree.ElementTree as ET
             root = ET.fromstring(raw)
             ns = {'s': 'http://schemas.xmlsoap.org/soap/envelope/', 't': 'http://tempuri.org/'}
             results = []
