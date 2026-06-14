@@ -164,7 +164,7 @@ export default function ProfileMenu({ registerOpenIntegrations }: { registerOpen
   const handleApiSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setApiSaving(true);
-    await saveCompanySettings(token!, { ...apiKeys, _type: 'api_keys' } as Record<string, string>);
+    await saveCompanySettings(token!, apiKeys as Record<string, string>);
     setApiSuccess('Сохранено');
     setTimeout(() => setApiSuccess(''), 2500);
     setApiSaving(false);
@@ -175,6 +175,20 @@ export default function ProfileMenu({ registerOpenIntegrations }: { registerOpen
     setForm((f) => ({ ...f, oldPassword: '', password: '', password2: '' }));
     setSettingsTab(tab);
     setShowSettings(true);
+    getCompanySettings().then((d: Record<string, string>) => {
+      setCompany((c) => ({ ...c, ...d }));
+      setApiKeys((k) => ({
+        ...k,
+        exist_login: d.exist_login || '',
+        exist_password: d.exist_password || '',
+        rossko_key1: d.rossko_key1 || '',
+        rossko_key2: d.rossko_key2 || '',
+        avtorus_token: d.avtorus_token || '',
+        emex_token: d.emex_token || '',
+        autodoc_token: d.autodoc_token || '',
+        armtek_token: d.armtek_token || '',
+      }));
+    }).catch(() => {});
     setOpen(false);
   };
 
