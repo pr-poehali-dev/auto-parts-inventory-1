@@ -12,7 +12,7 @@ CORS = {
     'Access-Control-Allow-Headers': 'Content-Type, X-Session-Token',
 }
 
-SCHEMA = os.environ.get('DB_SCHEMA', 'public')
+SCHEMA = os.environ.get('DB_SCHEMA', 't_p26023881_auto_parts_inventory')
 
 SUPPLIER_KEYS = [
     'exist_login', 'exist_password',
