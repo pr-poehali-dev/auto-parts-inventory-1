@@ -73,9 +73,9 @@ def search_avtorus(article: str, token: str) -> list:
 
 def search_exist(article: str, login: str, password: str) -> list:
     """Поиск по артикулу через Exist.ru REST API (Basic Auth)"""
+    import base64
     encoded = urllib.parse.quote(article)
     url = f"https://api.exist.ru/api/v1/search?q={encoded}&pageSize=20"
-    import base64
     creds = base64.b64encode(f"{login}:{password}".encode()).decode()
     req = urllib.request.Request(url, headers={
         'Authorization': f'Basic {creds}',
@@ -83,22 +83,30 @@ def search_exist(article: str, login: str, password: str) -> list:
     })
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
-            data = json.loads(r.read())
-            items = data if isinstance(data, list) else data.get('items', data.get('data', data.get('result', [])))
+            raw = r.read()
+            print(f"[EXIST] status={r.status} url={url}")
+            print(f"[EXIST] response={raw[:500]}")
+            data = json.loads(raw)
+            items = data if isinstance(data, list) else data.get('items', data.get('data', data.get('result', data.get('offers', []))))
             results = []
             for item in items[:20]:
                 results.append({
                     'source': 'Exist.ru',
-                    'article': str(item.get('article', item.get('partNumber', ''))),
-                    'brand': str(item.get('brand', item.get('brandName', ''))),
-                    'name': str(item.get('name', item.get('description', ''))),
-                    'price': float(item.get('price', item.get('retailPrice', 0)) or 0),
-                    'quantity': int(item.get('quantity', item.get('count', item.get('stock', 0))) or 0),
-                    'delivery_days': str(item.get('deliveryDays', item.get('deliveryTime', '')) or ''),
-                    'warehouse': str(item.get('warehouse', item.get('warehouseName', '')) or ''),
+                    'article': str(item.get('article', item.get('partNumber', item.get('number', '')))),
+                    'brand': str(item.get('brand', item.get('brandName', item.get('producer', '')))),
+                    'name': str(item.get('name', item.get('description', item.get('title', '')))),
+                    'price': float(item.get('price', item.get('retailPrice', item.get('cost', 0))) or 0),
+                    'quantity': int(item.get('quantity', item.get('count', item.get('stock', item.get('rest', 0)))) or 0),
+                    'delivery_days': str(item.get('deliveryDays', item.get('deliveryTime', item.get('period', ''))) or ''),
+                    'warehouse': str(item.get('warehouse', item.get('warehouseName', item.get('storeName', ''))) or ''),
                 })
             return results
-    except Exception:
+    except urllib.error.HTTPError as e:
+        body = e.read()[:300]
+        print(f"[EXIST] HTTPError {e.code}: {body}")
+        return []
+    except Exception as ex:
+        print(f"[EXIST] Exception: {ex}")
         return []
 
 
