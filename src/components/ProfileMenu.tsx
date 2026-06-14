@@ -63,7 +63,8 @@ export default function ProfileMenu({ registerOpenIntegrations }: { registerOpen
   const [apiKeys, setApiKeys] = useState({
     exist_login: '',
     exist_password: '',
-    emex_token: '',
+    emex_login: '',
+    emex_password: '',
     autodoc_token: '',
     rossko_key1: '',
     rossko_key2: '',
@@ -184,7 +185,8 @@ export default function ProfileMenu({ registerOpenIntegrations }: { registerOpen
         rossko_key1: d.rossko_key1 || '',
         rossko_key2: d.rossko_key2 || '',
         avtorus_token: d.avtorus_token || '',
-        emex_token: d.emex_token || '',
+        emex_login: d.emex_login || '',
+        emex_password: d.emex_password || '',
         autodoc_token: d.autodoc_token || '',
         armtek_token: d.armtek_token || '',
       }));
@@ -359,9 +361,26 @@ export default function ProfileMenu({ registerOpenIntegrations }: { registerOpen
                     <span className="text-xs text-muted-foreground">Два ключа — запрашиваются у менеджера Rossko</span>
                   </div>
 
-                  {/* Emex, Autodoc, Armtek — по токену */}
+                  {/* Emex.ru — логин + пароль от аккаунта */}
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Emex.ru</span>
+                      <a href="https://emex.ru/login" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline">Сайт Emex</a>
+                    </div>
+                    <input
+                      type="text"
+                      value={apiKeys.emex_login}
+                      onChange={(e) => setApiKeys((k) => ({ ...k, emex_login: e.target.value }))}
+                      placeholder="Логин от аккаунта Emex.ru"
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      autoComplete="off"
+                    />
+                    <PasswordInput value={apiKeys.emex_password} onChange={(v) => setApiKeys((k) => ({ ...k, emex_password: v }))} placeholder="Пароль от аккаунта Emex.ru" />
+                    <span className="text-xs text-muted-foreground">Обычный логин и пароль от вашего аккаунта на emex.ru — отдельный API-ключ не нужен</span>
+                  </div>
+
+                  {/* Autodoc, Armtek — по токену */}
                   {([
-                    { field: 'emex_token' as const, label: 'Emex.ru', hint: 'Токен выдаёт поддержка Emex по запросу', url: 'https://emex.ru' },
                     { field: 'autodoc_token' as const, label: 'Autodoc.ru', hint: 'Личный кабинет → Интеграция → API', url: 'https://autodoc.ru' },
                     { field: 'armtek_token' as const, label: 'Armtek', hint: 'Токен выдаёт менеджер Armtek', url: 'https://armtek.ru' },
                   ]).map(({ field, label, hint, url }) => (

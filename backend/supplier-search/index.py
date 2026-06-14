@@ -17,7 +17,7 @@ SCHEMA = os.environ.get('DB_SCHEMA', 't_p26023881_auto_parts_inventory')
 SUPPLIER_KEYS = [
     'exist_login', 'exist_password',
     'rossko_key1', 'rossko_key2',
-    'avtorus_token', 'emex_token', 'autodoc_token', 'armtek_token',
+    'avtorus_token', 'emex_login', 'emex_password', 'autodoc_token', 'armtek_token',
 ]
 
 
@@ -156,6 +156,104 @@ def search_rossko(article: str, key1: str, key2: str) -> list:
         return []
 
 
+def search_emex(article: str, login: str, password: str) -> list:
+    """Поиск по артикулу через EMEX SOAP API (ws.emex.ru)"""
+    soap_body = f"""<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="http://tempuri.org/">
+  <soap:Body>
+    <tns:GetSparePartsForStockist>
+      <tns:login>{login}</tns:login>
+      <tns:password>{password}</tns:password>
+      <tns:detailnum>{article}</tns:detailnum>
+      <tns:detailnumType>0</tns:detailnumType>
+    </tns:GetSparePartsForStockist>
+  </soap:Body>
+</soap:Envelope>"""
+    url = "http://ws.emex.ru/EmEx_Search.asmx"
+    req = urllib.request.Request(
+        url,
+        data=soap_body.encode('utf-8'),
+        headers={
+            'Content-Type': 'text/xml; charset=utf-8',
+            'SOAPAction': '"http://tempuri.org/GetSparePartsForStockist"',
+        }
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            raw = r.read().decode('utf-8')
+            print(f"[EMEX] status={r.status} len={len(raw)}")
+            print(f"[EMEX] body={raw[:800]}")
+            import xml.etree.ElementTree as ET
+            root = ET.fromstring(raw)
+            ns = {'s': 'http://schemas.xmlsoap.org/soap/envelope/', 't': 'http://tempuri.org/'}
+            results = []
+            for detail in root.iter('SparePartData'):
+                price_str = detail.findtext('PriceRUR') or detail.findtext('Price') or '0'
+                qty_str = detail.findtext('Quantity') or detail.findtext('Rest') or '0'
+                try:
+                    price = float(price_str.replace(',', '.')) if price_str else 0.0
+                except Exception:
+                    price = 0.0
+                try:
+                    qty = int(float(qty_str)) if qty_str else 0
+                except Exception:
+                    qty = 0
+                delivery = detail.findtext('DeliveryDays') or detail.findtext('Period') or ''
+                results.append({
+                    'source': 'EMEX',
+                    'article': str(detail.findtext('DetailNum') or article),
+                    'brand': str(detail.findtext('MakeName') or detail.findtext('Brand') or ''),
+                    'name': str(detail.findtext('DetailNameRusUser') or detail.findtext('Name') or ''),
+                    'price': price,
+                    'quantity': qty,
+                    'delivery_days': str(delivery),
+                    'warehouse': str(detail.findtext('StoreName') or detail.findtext('Warehouse') or ''),
+                })
+            return results[:30]
+    except urllib.error.HTTPError as e:
+        body = e.read()[:300]
+        print(f"[EMEX] HTTPError {e.code}: {body}")
+        return []
+    except Exception as ex:
+        print(f"[EMEX] Exception: {ex}")
+        return []
+
+
+def check_emex(login: str, password: str) -> dict:
+    """Проверка подключения к EMEX через TestConnect"""
+    soap_body = f"""<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="http://tempuri.org/">
+  <soap:Body>
+    <tns:TestConnect>
+      <tns:login>{login}</tns:login>
+      <tns:password>{password}</tns:password>
+      <tns:testString>ping</tns:testString>
+    </tns:TestConnect>
+  </soap:Body>
+</soap:Envelope>"""
+    url = "http://ws.emex.ru/EmEx_Basket.asmx"
+    req = urllib.request.Request(
+        url,
+        data=soap_body.encode('utf-8'),
+        headers={
+            'Content-Type': 'text/xml; charset=utf-8',
+            'SOAPAction': '"http://tempuri.org/TestConnect"',
+        }
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=8) as r:
+            raw = r.read().decode('utf-8')
+            if 'Запрос с адреса' in raw or 'TestConnectResult' in raw:
+                return {'name': 'EMEX', 'ok': True}
+            return {'name': 'EMEX', 'ok': False, 'error': 'Неверный ответ сервера'}
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403):
+            return {'name': 'EMEX', 'ok': False, 'error': 'Неверный логин или пароль'}
+        return {'name': 'EMEX', 'ok': False, 'error': f'Ошибка {e.code}'}
+    except Exception as ex:
+        return {'name': 'EMEX', 'ok': False, 'error': 'Нет связи с сервером'}
+
+
 def check_avtorus(token: str) -> dict:
     """Проверка подключения к Авторусь"""
     url = "https://public.api.avtorus.ru/api/v1/profile/clients"
@@ -232,6 +330,8 @@ def handler(event: dict, context) -> dict:
             checks.append(check_exist(creds['exist_login'], creds['exist_password']))
         if creds.get('rossko_key1') and creds.get('rossko_key2'):
             checks.append(check_rossko(creds['rossko_key1'], creds['rossko_key2']))
+        if creds.get('emex_login') and creds.get('emex_password'):
+            checks.append(check_emex(creds['emex_login'], creds['emex_password']))
         if not checks:
             return resp(200, {'connected': [], 'message': 'Нет подключённых поставщиков'})
         return resp(200, {'connected': checks})
@@ -255,5 +355,9 @@ def handler(event: dict, context) -> dict:
     if creds.get('rossko_key1') and creds.get('rossko_key2'):
         connected.append('rossko')
         results += search_rossko(article, creds['rossko_key1'], creds['rossko_key2'])
+
+    if creds.get('emex_login') and creds.get('emex_password'):
+        connected.append('emex')
+        results += search_emex(article, creds['emex_login'], creds['emex_password'])
 
     return resp(200, {'results': results, 'connected': connected})

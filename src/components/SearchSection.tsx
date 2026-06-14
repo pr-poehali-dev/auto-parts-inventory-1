@@ -213,6 +213,19 @@ export default function SearchSection({ onSelectPart, onOpenApiSettings }: Searc
                 </ol>
               </div>
 
+              {/* Emex.ru */}
+              <div className="rounded-lg border border-border p-3 space-y-1">
+                <div className="font-medium text-sm flex items-center gap-2">
+                  Emex.ru
+                  <span className="text-xs text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded font-normal">самый простой</span>
+                </div>
+                <ol className="text-xs text-muted-foreground space-y-0.5 list-decimal list-inside">
+                  <li>Зарегистрируйтесь или войдите на <a href="https://emex.ru" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">emex.ru</a></li>
+                  <li>Отдельный API-ключ не нужен — используется обычный логин и пароль от сайта</li>
+                  <li>Введите их в настройках в поле «Emex.ru»</li>
+                </ol>
+              </div>
+
               {/* Armtek */}
               <div className="rounded-lg border border-border p-3 space-y-1">
                 <div className="font-medium text-sm">Armtek</div>
