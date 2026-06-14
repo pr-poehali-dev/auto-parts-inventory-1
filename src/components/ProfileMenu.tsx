@@ -61,12 +61,12 @@ export default function ProfileMenu({ registerOpenIntegrations }: { registerOpen
   const [companySuccess, setCompanySuccess] = useState('');
 
   const [apiKeys, setApiKeys] = useState({
-    exist_login: '',
-    exist_password: '',
-    emex_user: '',
-    emex_password: '',
-    autodoc_login: '',
-    autodoc_password: '',
+    exist_token: '',
+    emex_token: '',
+    autodoc_token: '',
+    rossko_token: '',
+    avtorus_token: '',
+    armtek_token: '',
   });
   const [apiSaving, setApiSaving] = useState(false);
   const [apiSuccess, setApiSuccess] = useState('');
@@ -287,33 +287,39 @@ export default function ProfileMenu({ registerOpenIntegrations }: { registerOpen
             {/* Вкладка: API магазинов */}
             {settingsTab === 'integrations' && (
               <div className="px-6 py-5">
-                <p className="text-xs text-muted-foreground mb-4">
-                  Введите логины и пароли от магазинов-поставщиков. После подключения система будет показывать актуальные цены и сроки доставки прямо в поиске.
+                <p className="text-xs text-muted-foreground mb-1">
+                  Вставьте API-токен от поставщика — его выдают по запросу в личном кабинете магазина. После этого система будет показывать цены и сроки доставки прямо в поиске.
                 </p>
-                <form onSubmit={handleApiSave} className="flex flex-col gap-5">
-                  {[
-                    { key: 'exist', label: 'Exist.ru', icon: '🛒', loginField: 'exist_login' as const, passField: 'exist_password' as const },
-                    { key: 'emex', label: 'Emex.ru', icon: '📦', loginField: 'emex_user' as const, passField: 'emex_password' as const },
-                    { key: 'autodoc', label: 'Autodoc.ru', icon: '🔧', loginField: 'autodoc_login' as const, passField: 'autodoc_password' as const },
-                  ].map(({ key, label, icon, loginField, passField }) => (
-                    <div key={key} className="flex flex-col gap-2">
-                      <div className="flex items-center gap-2 text-sm font-medium">
-                        <span>{icon}</span>
-                        {label}
+                <a
+                  href="https://t.me/partkeeper_support"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 underline mb-4 inline-block"
+                >
+                  Нужна помощь с получением токена?
+                </a>
+                <form onSubmit={handleApiSave} className="flex flex-col gap-4 mt-2">
+                  {([
+                    { field: 'exist_token' as const, label: 'Exist.ru', hint: 'Личный кабинет → Настройки → API', url: 'https://exist.ru/cabinet/settings/api/' },
+                    { field: 'emex_token' as const, label: 'Emex.ru', hint: 'Поддержка Emex выдаёт токен по запросу', url: 'https://emex.ru' },
+                    { field: 'autodoc_token' as const, label: 'Autodoc.ru', hint: 'Личный кабинет → Интеграция → API', url: 'https://autodoc.ru' },
+                    { field: 'rossko_token' as const, label: 'Rossko', hint: 'Обратитесь к менеджеру Rossko', url: 'https://rossko.ru' },
+                    { field: 'avtorus_token' as const, label: 'Авторусь (ARUS)', hint: 'Профиль → Настройки API → Сгенерировать токен', url: 'https://public.api.avtorus.ru' },
+                    { field: 'armtek_token' as const, label: 'Armtek', hint: 'Обратитесь к менеджеру Armtek', url: 'https://armtek.ru' },
+                  ]).map(({ field, label, hint, url }) => (
+                    <div key={field} className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{label}</span>
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline">
+                          Получить токен
+                        </a>
                       </div>
-                      <input
-                        type="text"
-                        placeholder="Логин"
-                        value={apiKeys[loginField]}
-                        onChange={(e) => setApiKeys((k) => ({ ...k, [loginField]: e.target.value }))}
-                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                        autoComplete="off"
-                      />
                       <PasswordInput
-                        value={apiKeys[passField]}
-                        onChange={(v) => setApiKeys((k) => ({ ...k, [passField]: v }))}
-                        placeholder="Пароль"
+                        value={apiKeys[field]}
+                        onChange={(v) => setApiKeys((k) => ({ ...k, [field]: v }))}
+                        placeholder="Вставьте API-токен"
                       />
+                      <span className="text-xs text-muted-foreground">{hint}</span>
                     </div>
                   ))}
                   {apiSuccess && (
@@ -328,7 +334,7 @@ export default function ProfileMenu({ registerOpenIntegrations }: { registerOpen
                     className="w-full bg-foreground text-background rounded-lg py-2.5 text-sm font-semibold hover:bg-foreground/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
                   >
                     {apiSaving && <Icon name="Loader" size={14} className="animate-spin" />}
-                    Сохранить
+                    Сохранить токены
                   </button>
                 </form>
               </div>
