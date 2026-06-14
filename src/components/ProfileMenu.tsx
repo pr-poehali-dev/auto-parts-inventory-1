@@ -34,11 +34,11 @@ function PasswordInput({ value, onChange, placeholder, autoComplete }: {
   );
 }
 
-export default function ProfileMenu() {
+export default function ProfileMenu({ registerOpenIntegrations }: { registerOpenIntegrations?: (fn: () => void) => void }) {
   const { user, token, logout, setUser } = useAuth();
   const [open, setOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<'account' | 'company' | 'feedback'>('account');
+  const [settingsTab, setSettingsTab] = useState<'account' | 'company' | 'integrations' | 'feedback'>('account');
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSending, setFeedbackSending] = useState(false);
   const [feedbackSuccess, setFeedbackSuccess] = useState(false);
@@ -59,6 +59,17 @@ export default function ProfileMenu() {
   const [company, setCompany] = useState({ name: '', inn: '', ogrn: '', address: '', phone: '', email: '' });
   const [companySaving, setCompanySaving] = useState(false);
   const [companySuccess, setCompanySuccess] = useState('');
+
+  const [apiKeys, setApiKeys] = useState({
+    exist_login: '',
+    exist_password: '',
+    emex_user: '',
+    emex_password: '',
+    autodoc_login: '',
+    autodoc_password: '',
+  });
+  const [apiSaving, setApiSaving] = useState(false);
+  const [apiSuccess, setApiSuccess] = useState('');
 
   useEffect(() => {
     getCompanySettings().then((d: Record<string, string>) => setCompany(c => ({ ...c, ...d }))).catch(() => {});
@@ -146,13 +157,28 @@ export default function ProfileMenu() {
     }
   };
 
-  const openSettings = (tab: 'account' | 'company' | 'feedback' = 'account') => {
+  const handleApiSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setApiSaving(true);
+    await saveCompanySettings(token!, { ...apiKeys, _type: 'api_keys' } as Record<string, string>);
+    setApiSuccess('Сохранено');
+    setTimeout(() => setApiSuccess(''), 2500);
+    setApiSaving(false);
+  };
+
+  const openSettings = (tab: 'account' | 'company' | 'integrations' | 'feedback' = 'account') => {
     setError(''); setSuccess('');
     setForm((f) => ({ ...f, oldPassword: '', password: '', password2: '' }));
     setSettingsTab(tab);
     setShowSettings(true);
     setOpen(false);
   };
+
+  useEffect(() => {
+    if (registerOpenIntegrations) {
+      registerOpenIntegrations(() => openSettings('integrations'));
+    }
+  }, []);
 
   return (
     <div className="relative shrink-0" ref={ref}>
@@ -188,6 +214,13 @@ export default function ProfileMenu() {
           >
             <Icon name="Building2" size={15} className="text-muted-foreground" />
             Реквизиты компании
+          </button>
+          <button
+            onClick={() => openSettings('integrations')}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted transition-colors"
+          >
+            <Icon name="Key" size={15} className="text-muted-foreground" />
+            API магазинов
           </button>
           <button
             onClick={() => openSettings('feedback')}
@@ -236,6 +269,13 @@ export default function ProfileMenu() {
                 Реквизиты
               </button>
               <button
+                onClick={() => setSettingsTab('integrations')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${settingsTab === 'integrations' ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-muted'}`}
+              >
+                <Icon name="Key" size={14} />
+                Магазины
+              </button>
+              <button
                 onClick={() => { setSettingsTab('feedback'); setFeedbackSuccess(false); setFeedbackError(''); }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${settingsTab === 'feedback' ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-muted'}`}
               >
@@ -243,6 +283,56 @@ export default function ProfileMenu() {
                 Связь
               </button>
             </div>
+
+            {/* Вкладка: API магазинов */}
+            {settingsTab === 'integrations' && (
+              <div className="px-6 py-5">
+                <p className="text-xs text-muted-foreground mb-4">
+                  Введите логины и пароли от магазинов-поставщиков. После подключения система будет показывать актуальные цены и сроки доставки прямо в поиске.
+                </p>
+                <form onSubmit={handleApiSave} className="flex flex-col gap-5">
+                  {[
+                    { key: 'exist', label: 'Exist.ru', icon: '🛒', loginField: 'exist_login' as const, passField: 'exist_password' as const },
+                    { key: 'emex', label: 'Emex.ru', icon: '📦', loginField: 'emex_user' as const, passField: 'emex_password' as const },
+                    { key: 'autodoc', label: 'Autodoc.ru', icon: '🔧', loginField: 'autodoc_login' as const, passField: 'autodoc_password' as const },
+                  ].map(({ key, label, icon, loginField, passField }) => (
+                    <div key={key} className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <span>{icon}</span>
+                        {label}
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Логин"
+                        value={apiKeys[loginField]}
+                        onChange={(e) => setApiKeys((k) => ({ ...k, [loginField]: e.target.value }))}
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        autoComplete="off"
+                      />
+                      <PasswordInput
+                        value={apiKeys[passField]}
+                        onChange={(v) => setApiKeys((k) => ({ ...k, [passField]: v }))}
+                        placeholder="Пароль"
+                      />
+                    </div>
+                  ))}
+                  {apiSuccess && (
+                    <div className="rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-2 text-sm flex items-center gap-2">
+                      <Icon name="CheckCircle" size={14} className="shrink-0" />
+                      {apiSuccess}
+                    </div>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={apiSaving}
+                    className="w-full bg-foreground text-background rounded-lg py-2.5 text-sm font-semibold hover:bg-foreground/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                  >
+                    {apiSaving && <Icon name="Loader" size={14} className="animate-spin" />}
+                    Сохранить
+                  </button>
+                </form>
+              </div>
+            )}
 
             {/* Вкладка: Обратная связь */}
             {settingsTab === 'feedback' && (

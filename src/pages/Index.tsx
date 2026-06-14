@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Icon from '@/components/ui/icon';
 import SearchSection from '@/components/SearchSection';
 import StockSection from '@/components/StockSection';
@@ -32,6 +32,7 @@ export default function Index() {
   const [selectedPart, setSelectedPart] = useState<Part | null>(null);
   const [lowStockCount, setLowStockCount] = useState(0);
   const [stockKey, setStockKey] = useState(0);
+  const openApiSettingsRef = useRef<() => void>(() => {});
 
   const isAdmin = user?.phone?.replace(/[\s-]/g, '') === ADMIN_PHONE;
 
@@ -119,7 +120,7 @@ export default function Index() {
             </div>
 
             {/* Профиль */}
-            <ProfileMenu />
+            <ProfileMenu registerOpenIntegrations={(fn) => { openApiSettingsRef.current = fn; }} />
           </div>
         </div>
       </header>
@@ -130,7 +131,7 @@ export default function Index() {
           <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
         </div>
 
-        {activeTab === 'search' && <SearchSection onSelectPart={setSelectedPart} />}
+        {activeTab === 'search' && <SearchSection onSelectPart={setSelectedPart} onOpenApiSettings={() => openApiSettingsRef.current()} />}
         {activeTab === 'clients' && <ClientsSection />}
         {activeTab === 'orders' && <OrdersSection />}
         {activeTab === 'stock' && <StockSection key={stockKey} onSelectPart={setSelectedPart} />}

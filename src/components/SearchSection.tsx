@@ -24,6 +24,7 @@ async function fetchExternalAnalogs(query: string): Promise<ExternalAnalog[]> {
 
 interface SearchSectionProps {
   onSelectPart: (part: Part) => void;
+  onOpenApiSettings: () => void;
 }
 
 interface SearchResult {
@@ -83,7 +84,7 @@ const stockBadge = (qty: number, min: number) => {
   return <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded shrink-0">{qty} шт</span>;
 };
 
-export default function SearchSection({ onSelectPart }: SearchSectionProps) {
+export default function SearchSection({ onSelectPart, onOpenApiSettings }: SearchSectionProps) {
   const [allParts, setAllParts] = useState<Part[]>([]);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult>({ direct: [], analogsByList: [], analogsByOem: [], oemMatchQuery: false });
@@ -291,11 +292,28 @@ export default function SearchSection({ onSelectPart }: SearchSectionProps) {
       )}
 
       {!searched && (
-        <EmptyBackground
-          icons={['ScanBarcode', 'Search', 'Tag', 'Package', 'Barcode', 'PackageSearch', 'Hash', 'Scan']}
-          text="Введите артикул, OEM-номер, наименование или штрихкод."
-          subtext="При вводе OEM-системы будут найдены все заменители на складе."
-        />
+        <>
+          <div className="mx-4 mt-4 mb-2 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+            <span className="text-xl shrink-0 mt-0.5">🔑</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-amber-900">Подключите магазины автозапчастей</div>
+              <div className="text-xs text-amber-700 mt-0.5">
+                Чтобы видеть цены и сроки поставки от поставщиков прямо в поиске — добавьте API ключи магазинов в{' '}
+                <button
+                  onClick={onOpenApiSettings}
+                  className="underline font-medium hover:text-amber-900 transition-colors"
+                >
+                  настройках
+                </button>
+              </div>
+            </div>
+          </div>
+          <EmptyBackground
+            icons={['ScanBarcode', 'Search', 'Tag', 'Package', 'Barcode', 'PackageSearch', 'Hash', 'Scan']}
+            text="Введите артикул, OEM-номер, наименование или штрихкод."
+            subtext="При вводе OEM-системы будут найдены все заменители на складе."
+          />
+        </>
       )}
     </div>
   );
