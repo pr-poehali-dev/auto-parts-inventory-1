@@ -10,7 +10,7 @@ import PartDetailModal from '@/components/PartDetailModal';
 import AuthScreen from '@/components/AuthScreen';
 import ProfileMenu from '@/components/ProfileMenu';
 import { Part } from '@/data/mockData';
-import { getParts } from '@/api';
+import { getParts, logVisit } from '@/api';
 import { useAuth } from '@/context/AuthContext';
 
 const ADMIN_PHONE = '+79680066666';
@@ -44,6 +44,11 @@ export default function Index() {
     { id: 'analytics', label: 'Аналитика', icon: 'BarChart3' },
     ...(isAdmin ? [{ id: 'admin' as Tab, label: 'Админ', icon: 'ShieldCheck' }] : []),
   ];
+
+  useEffect(() => {
+    if (!user) return;
+    logVisit(activeTab, user.id);
+  }, [activeTab, user]);
 
   useEffect(() => {
     if (!user) return;

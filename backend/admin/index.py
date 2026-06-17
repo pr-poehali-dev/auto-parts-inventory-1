@@ -152,6 +152,64 @@ def handler(event: dict, context) -> dict:
             rows = [dict(zip(cols, row)) for row in cur.fetchall()]
             return resp(200, rows)
 
+        # ── VISITS ────────────────────────────────────────────
+        if method == 'GET' and action == 'visits':
+            period = qs.get('period', 'day')
+            if period == 'day':
+                interval = '1 day'
+                trunc = 'hour'
+            elif period == 'week':
+                interval = '7 days'
+                trunc = 'day'
+            else:
+                interval = '30 days'
+                trunc = 'day'
+
+            cur.execute(f"""
+                SELECT DATE_TRUNC(%s, visited_at) as t, COUNT(*) as visits, COUNT(DISTINCT ip) as unique_visitors
+                FROM {SCHEMA}.page_visits
+                WHERE visited_at >= NOW() - INTERVAL '{interval}'
+                GROUP BY t ORDER BY t
+            """, (trunc,))
+            by_time = [{'time': str(r[0]), 'visits': r[1], 'unique': r[2]} for r in cur.fetchall()]
+
+            cur.execute(f"""
+                SELECT page, COUNT(*) as cnt FROM {SCHEMA}.page_visits
+                WHERE visited_at >= NOW() - INTERVAL '{interval}'
+                GROUP BY page ORDER BY cnt DESC LIMIT 10
+            """)
+            by_page = [{'page': r[0], 'count': r[1]} for r in cur.fetchall()]
+
+            cur.execute(f"SELECT COUNT(*) FROM {SCHEMA}.page_visits WHERE visited_at >= NOW() - INTERVAL '1 day'")
+            today = cur.fetchone()[0]
+            cur.execute(f"SELECT COUNT(*) FROM {SCHEMA}.page_visits WHERE visited_at >= NOW() - INTERVAL '7 days'")
+            week = cur.fetchone()[0]
+            cur.execute(f"SELECT COUNT(*) FROM {SCHEMA}.page_visits WHERE visited_at >= NOW() - INTERVAL '30 days'")
+            month = cur.fetchone()[0]
+            cur.execute(f"SELECT COUNT(DISTINCT ip) FROM {SCHEMA}.page_visits WHERE visited_at >= NOW() - INTERVAL '1 day'")
+            today_uniq = cur.fetchone()[0]
+
+            return resp(200, {
+                'byTime': by_time,
+                'byPage': by_page,
+                'totals': {'today': today, 'week': week, 'month': month, 'todayUnique': today_uniq},
+            })
+
+        # ── LOG VISIT (POST) ───────────────────────────────────
+        if method == 'POST' and action == 'log_visit':
+            body = json.loads(event.get('body') or '{}')
+            page = (body.get('page') or '/')[:100]
+            user_id = body.get('user_id')
+            ip = (event.get('requestContext') or {}).get('identity', {}).get('sourceIp') or \
+                 (event.get('headers') or {}).get('X-Forwarded-For', '').split(',')[0].strip() or None
+            ua = ((event.get('headers') or {}).get('User-Agent') or '')[:500]
+            cur.execute(f"""
+                INSERT INTO {SCHEMA}.page_visits (page, user_id, ip, user_agent)
+                VALUES (%s, %s, %s, %s)
+            """, (page, user_id or None, ip, ua))
+            conn.commit()
+            return resp(200, {'ok': True})
+
         # ── DB INFO ───────────────────────────────────────────
         if method == 'GET' and action == 'dbinfo':
             cur.execute(f"""

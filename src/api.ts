@@ -133,6 +133,16 @@ export const adminGetUsers = (token: string) => adminReq(`${ADMIN_URL}?action=us
 export const adminToggleUser = (token: string, userId: string) => adminReq(`${ADMIN_URL}?action=toggle_user`, 'POST', { userId }, token);
 export const adminGetOrders = (token: string, limit = 50) => adminReq(`${ADMIN_URL}?action=orders&limit=${limit}`, 'GET', undefined, token);
 export const adminGetDbInfo = (token: string) => adminReq(`${ADMIN_URL}?action=dbinfo`, 'GET', undefined, token);
+export const adminGetVisits = (token: string, period: 'day' | 'week' | 'month') =>
+  adminReq(`${ADMIN_URL}?action=visits&period=${period}`, 'GET', undefined, token);
+export const logVisit = (page: string, userId?: string | null) => {
+  if (!ADMIN_URL) return;
+  fetch(`${ADMIN_URL}?action=log_visit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ page, user_id: userId || null }),
+  }).catch(() => {});
+};
 
 // ── FEEDBACK ────────────────────────────────────────────
 const FEEDBACK_URL = (func2url as Record<string, string>)['feedback'];

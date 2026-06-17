@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { useAuth } from '@/context/AuthContext';
-import { adminGetStats, adminGetUsers, adminToggleUser, adminGetOrders, adminGetDbInfo, adminGetFeedback, adminReplyFeedback, adminMarkFeedbackRead, adminExtendSubscription } from '@/api';
+import { adminGetStats, adminGetUsers, adminToggleUser, adminGetOrders, adminGetDbInfo, adminGetFeedback, adminReplyFeedback, adminMarkFeedbackRead, adminExtendSubscription, adminGetVisits } from '@/api';
 
 interface Stats {
   totalUsers: number;
@@ -62,7 +62,13 @@ interface FeedbackItem {
   created_at: string;
 }
 
-type Tab = 'stats' | 'users' | 'orders' | 'db' | 'feedback';
+interface VisitsData {
+  byTime: { time: string; visits: number; unique: number }[];
+  byPage: { page: string; count: number }[];
+  totals: { today: number; week: number; month: number; todayUnique: number };
+}
+
+type Tab = 'stats' | 'users' | 'orders' | 'db' | 'feedback' | 'visits';
 
 const STATUS_LABELS: Record<string, string> = {
   new: 'Новый', ordered: 'Заказан', in_stock: 'На складе', issued: 'Выдан', cancelled: 'Отменён',
@@ -84,6 +90,8 @@ export default function AdminSection() {
   const [replyingId, setReplyingId] = useState<number | null>(null);
   const [replyText, setReplyText] = useState('');
   const [replySending, setReplySending] = useState(false);
+  const [visits, setVisits] = useState<VisitsData | null>(null);
+  const [visitsPeriod, setVisitsPeriod] = useState<'day' | 'week' | 'month'>('week');
   const [loading, setLoading] = useState(false);
   const [togglingUser, setTogglingUser] = useState<string | null>(null);
   const [extendingUser, setExtendingUser] = useState<string | null>(null);
@@ -109,13 +117,16 @@ export default function AdminSection() {
       } else if (t === 'feedback') {
         const data = await adminGetFeedback(token);
         setFeedbackItems(data.items);
+      } else if (t === 'visits') {
+        const data = await adminGetVisits(token, visitsPeriod);
+        setVisits(data);
       }
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(tab); }, [tab]);
+  useEffect(() => { load(tab); }, [tab, visitsPeriod]);
 
   const handleToggleUser = async (userId: string) => {
     if (!token) return;
@@ -166,6 +177,7 @@ export default function AdminSection() {
 
   const TABS: { id: Tab; label: string; icon: string }[] = [
     { id: 'stats', label: 'Обзор', icon: 'BarChart3' },
+    { id: 'visits', label: 'Посещения', icon: 'Activity' },
     { id: 'users', label: 'Пользователи', icon: 'Users' },
     { id: 'orders', label: 'Заказы', icon: 'ClipboardList' },
     { id: 'feedback', label: 'Сообщения', icon: 'MessageCircle' },
@@ -206,6 +218,109 @@ export default function AdminSection() {
       {loading && (
         <div className="py-12 text-center text-muted-foreground">
           <Icon name="Loader" size={24} className="mx-auto mb-2 animate-spin opacity-40" />
+        </div>
+      )}
+
+      {/* ПОСЕЩЕНИЯ */}
+      {!loading && tab === 'visits' && (
+        <div className="space-y-4">
+          {/* Переключатель периода */}
+          <div className="flex gap-1 bg-muted rounded-lg p-1 w-fit">
+            {(['day', 'week', 'month'] as const).map((p) => (
+              <button key={p} onClick={() => setVisitsPeriod(p)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${visitsPeriod === p ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                {p === 'day' ? 'День' : p === 'week' ? 'Неделя' : 'Месяц'}
+              </button>
+            ))}
+          </div>
+
+          {visits ? (
+            <>
+              {/* Итоги */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: 'За сегодня', value: visits.totals.today, icon: 'Eye', color: 'text-blue-600' },
+                  { label: 'Уникальных сегодня', value: visits.totals.todayUnique, icon: 'User', color: 'text-purple-600' },
+                  { label: 'За неделю', value: visits.totals.week, icon: 'TrendingUp', color: 'text-emerald-600' },
+                  { label: 'За месяц', value: visits.totals.month, icon: 'Calendar', color: 'text-orange-500' },
+                ].map(({ label, value, icon, color }) => (
+                  <div key={label} className="bg-white border border-border rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Icon name={icon as 'Eye'} size={14} className={color} />
+                      <span className="text-xs text-muted-foreground">{label}</span>
+                    </div>
+                    <div className="text-2xl font-bold font-mono-data">{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* График по времени */}
+              {visits.byTime.length > 0 && (
+                <div className="bg-white border border-border rounded-xl p-4">
+                  <div className="text-xs font-medium text-muted-foreground mb-3">
+                    Посещения ({visitsPeriod === 'day' ? 'по часам' : 'по дням'})
+                  </div>
+                  <div className="flex items-end gap-1 h-24">
+                    {(() => {
+                      const max = Math.max(...visits.byTime.map(d => d.visits), 1);
+                      return visits.byTime.map((d, i) => (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
+                          <div className="absolute -top-6 left-1/2 -translate-x-1/2 hidden group-hover:flex bg-foreground text-background text-[10px] rounded px-1.5 py-0.5 whitespace-nowrap z-10">
+                            {d.visits} визитов
+                          </div>
+                          <div className="w-full bg-blue-100 rounded-sm transition-all"
+                            style={{ height: `${Math.max(4, (d.visits / max) * 96)}px` }} />
+                          {visits.byTime.length <= 14 && (
+                            <span className="text-[9px] text-muted-foreground">
+                              {visitsPeriod === 'day'
+                                ? new Date(d.time).getHours() + 'ч'
+                                : new Date(d.time).toLocaleDateString('ru', { day: 'numeric', month: 'numeric' })}
+                            </span>
+                          )}
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {/* По страницам */}
+              {visits.byPage.length > 0 && (
+                <div className="bg-white border border-border rounded-xl p-4">
+                  <div className="text-xs font-medium text-muted-foreground mb-3">Популярные разделы</div>
+                  <div className="space-y-2">
+                    {visits.byPage.map(({ page, count }) => {
+                      const max = visits.byPage[0].count;
+                      const PAGE_NAMES: Record<string, string> = {
+                        search: 'Поиск', clients: 'Клиенты', orders: 'Заказы',
+                        stock: 'Склад', analytics: 'Аналитика', admin: 'Админ',
+                      };
+                      return (
+                        <div key={page} className="flex items-center gap-3">
+                          <span className="text-sm w-24 shrink-0">{PAGE_NAMES[page] || page}</span>
+                          <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
+                            <div className="h-full bg-blue-500 rounded-full transition-all"
+                              style={{ width: `${(count / max) * 100}%` }} />
+                          </div>
+                          <span className="text-sm font-mono-data text-muted-foreground w-8 text-right">{count}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {visits.byTime.length === 0 && (
+                <div className="bg-white border border-border rounded-xl p-8 text-center text-muted-foreground text-sm">
+                  Данных за этот период пока нет — посещения начнут записываться автоматически
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="py-12 text-center text-muted-foreground">
+              <Icon name="Loader" size={24} className="mx-auto mb-2 animate-spin opacity-40" />
+            </div>
+          )}
         </div>
       )}
 
