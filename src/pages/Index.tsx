@@ -46,9 +46,9 @@ export default function Index() {
   ];
 
   useEffect(() => {
-    if (!user || loading) return;
+    if (!user) return;
     logVisit(activeTab, user.id);
-  }, [activeTab, user?.id, loading]);
+  }, [activeTab, user?.id]);
 
   useEffect(() => {
     if (!user) return;
