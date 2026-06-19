@@ -55,6 +55,18 @@ def handler(event: dict, context) -> dict:
     cur = conn.cursor()
 
     try:
+        if method == 'POST' and action == 'log_visit':
+            body = json.loads(event.get('body') or '{}')
+            page = (body.get('page') or '/')[:100]
+            user_id = body.get('user_id')
+            ip = (event.get('requestContext') or {}).get('identity', {}).get('sourceIp') or \
+                 (event.get('headers') or {}).get('X-Forwarded-For', '').split(',')[0].strip() or None
+            ua = ((event.get('headers') or {}).get('User-Agent') or '')[:500]
+            cur.execute(f"INSERT INTO {SCHEMA}.page_visits (page, user_id, ip, user_agent) VALUES (%s, %s, %s, %s)",
+                        (page, user_id or None, ip, ua))
+            conn.commit()
+            return resp(200, {'ok': True})
+
         admin = get_admin_user(cur, token)
         if not admin:
             return resp(403, {'error': 'Доступ запрещён'})
