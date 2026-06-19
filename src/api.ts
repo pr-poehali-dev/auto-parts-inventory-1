@@ -136,16 +136,12 @@ export const adminGetDbInfo = (token: string) => adminReq(`${ADMIN_URL}?action=d
 export const adminGetVisits = (token: string, period: 'day' | 'week' | 'month') =>
   adminReq(`${ADMIN_URL}?action=visits&period=${period}`, 'GET', undefined, token);
 export const logVisit = (page: string, userId?: string | null) => {
-  if (!ADMIN_URL) { console.warn('[logVisit] no ADMIN_URL'); return; }
-  console.log('[logVisit] sending', page, userId);
+  if (!ADMIN_URL) return;
   fetch(`${ADMIN_URL}?action=log_visit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ page, user_id: userId || null }),
-  }).then(async (res) => {
-    const text = await res.text();
-    console.log('[logVisit] response', res.status, text);
-  }).catch((e) => console.error('[logVisit] fetch failed', e));
+  }).catch(() => {});
 };
 
 // ── FEEDBACK ────────────────────────────────────────────
