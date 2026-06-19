@@ -141,7 +141,9 @@ export const logVisit = (page: string, userId?: string | null) => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ page, user_id: userId || null }),
-  }).catch(() => {});
+  }).then(async (res) => {
+    if (!res.ok) console.error('[logVisit] error', res.status, await res.text());
+  }).catch((e) => console.error('[logVisit] fetch failed', e));
 };
 
 // ── FEEDBACK ────────────────────────────────────────────
