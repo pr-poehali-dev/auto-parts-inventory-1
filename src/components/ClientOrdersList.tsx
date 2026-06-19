@@ -90,6 +90,19 @@ export default function ClientOrdersList({ orders, loading, onNewOrder, onEditOr
                 </div>
 
                 {order.note && <div className="mt-2 text-xs text-muted-foreground italic">{order.note}</div>}
+
+                {order.prepaid > 0 && (
+                  <div className="mt-2 pt-2 border-t border-border flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Предоплата</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono-data text-emerald-600 font-medium">+{order.prepaid.toLocaleString()} ₽</span>
+                      {order.prepaid >= order.total
+                        ? <span className="px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-medium">оплачено</span>
+                        : <span className="px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium">долг {(order.total - order.prepaid).toLocaleString()} ₽</span>
+                      }
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

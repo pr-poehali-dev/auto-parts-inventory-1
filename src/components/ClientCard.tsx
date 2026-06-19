@@ -232,6 +232,12 @@ export default function ClientCard({ client, onBack }: Props) {
       setOrderNote('');
       setOrderPrepaid(0);
       setArticleQuery({});
+      if (orderPrepaid > 0) {
+        const freshClient = await getClient(client.id);
+        setBalance((freshClient as { balance: number }).balance);
+        const newHistory = await getBalanceHistory(client.id);
+        setBalanceHistory(newHistory as BalanceEntry[]);
+      }
     } finally {
       setSavingOrder(false);
     }
