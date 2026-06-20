@@ -49,23 +49,25 @@ def get_user_credentials(session_token: str):
 
 def search_avtorus(article: str, token: str) -> list:
     """Поиск по артикулу через API Авторусь (Bearer token)"""
-    # Шаг 1: получить список брендов по артикулу
+    # Шаг 1: получить список брендов через GET
     brands = []
     try:
-        brands_payload = json.dumps({'article': article}).encode()
+        encoded = urllib.parse.quote(article)
         brands_req = urllib.request.Request(
-            "https://public.api.autorus.ru/papi/v1/product/brands",
-            data=brands_payload,
+            f"https://public.api.autorus.ru/papi/v1/product/brands?article={encoded}",
             headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
         )
         with urllib.request.urlopen(brands_req, timeout=10) as r:
             raw = r.read()
-            print(f"[AVTORUS] brands status={r.status} response={raw[:500]}")
+            print(f"[AVTORUS] brands status={r.status} response={raw[:800]}")
             data = json.loads(raw)
             items = data if isinstance(data, list) else data.get('data', data.get('items', data.get('brands', [])))
             brands = [str(b.get('brand', b.get('name', b.get('brandName', b)))) for b in items if isinstance(b, dict)]
             if not brands and items:
                 brands = [str(b) for b in items]
+    except urllib.error.HTTPError as e:
+        body = e.read()[:500]
+        print(f"[AVTORUS] brands HTTPError {e.code}: {body}")
     except Exception as ex:
         print(f"[AVTORUS] brands Exception: {ex}")
 
@@ -99,6 +101,9 @@ def search_avtorus(article: str, token: str) -> list:
                         'delivery_days': str(item.get('deliveryDays', item.get('delivery', item.get('period', ''))) or ''),
                         'warehouse': str(item.get('warehouse', item.get('warehouseName', item.get('storage', ''))) or ''),
                     })
+        except urllib.error.HTTPError as e:
+            body = e.read()[:300]
+            print(f"[AVTORUS] offers HTTPError {e.code} brand={brand}: {body}")
         except Exception as ex:
             print(f"[AVTORUS] offers Exception brand={brand}: {ex}")
     return results[:20]
