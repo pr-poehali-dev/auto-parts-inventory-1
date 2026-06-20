@@ -52,7 +52,7 @@ def search_avtorus(article: str, token: str) -> list:
     # Шаг 1: получить список брендов через POST
     brands = []
     try:
-        brands_payload = json.dumps({'article': article, 'page': 1, 'perPage': 20}).encode()
+        brands_payload = json.dumps({'partNumber': article}).encode()
         brands_req = urllib.request.Request(
             "https://public.api.autorus.ru/papi/v1/product/brands",
             data=brands_payload,
@@ -63,9 +63,8 @@ def search_avtorus(article: str, token: str) -> list:
             print(f"[AVTORUS] brands status={r.status} response={raw[:800]}")
             data = json.loads(raw)
             items = data if isinstance(data, list) else data.get('data', data.get('items', data.get('brands', [])))
-            brands = [str(b.get('brand', b.get('name', b.get('brandName', b)))) for b in items if isinstance(b, dict)]
-            if not brands and items:
-                brands = [str(b) for b in items]
+            brands = [str(b.get('brand', b.get('name', ''))) for b in items if isinstance(b, dict) and b.get('brand')]
+            print(f"[AVTORUS] found brands: {brands}")
     except urllib.error.HTTPError as e:
         body = e.read()[:500]
         print(f"[AVTORUS] brands HTTPError {e.code}: {body}")
@@ -80,7 +79,7 @@ def search_avtorus(article: str, token: str) -> list:
     results = []
     for brand in brands[:5]:
         try:
-            offers_payload = json.dumps({'products': [{'article': article, 'brand': brand}]}).encode()
+            offers_payload = json.dumps({'products': [{'partNumber': article, 'brand': brand}]}).encode()
             offers_req = urllib.request.Request(
                 "https://public.api.autorus.ru/papi/v1/product/offers",
                 data=offers_payload,
