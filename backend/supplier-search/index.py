@@ -53,22 +53,30 @@ def search_avtorus(article: str, token: str) -> list:
     req = urllib.request.Request(url, headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'})
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
-            data = json.loads(r.read())
-            items = data if isinstance(data, list) else data.get('data', data.get('items', []))
+            raw = r.read()
+            print(f"[AVTORUS] status={r.status} len={len(raw)}")
+            print(f"[AVTORUS] response={raw[:800]}")
+            data = json.loads(raw)
+            items = data if isinstance(data, list) else data.get('data', data.get('items', data.get('offers', [])))
             results = []
             for item in items[:20]:
                 results.append({
                     'source': 'Авторусь',
-                    'article': str(item.get('article', '')),
-                    'brand': str(item.get('brand', item.get('brandName', ''))),
-                    'name': str(item.get('name', item.get('description', ''))),
-                    'price': float(item.get('price', item.get('retailPrice', 0)) or 0),
-                    'quantity': int(item.get('quantity', item.get('count', 0)) or 0),
-                    'delivery_days': str(item.get('deliveryDays', item.get('delivery', '')) or ''),
-                    'warehouse': str(item.get('warehouse', item.get('warehouseName', '')) or ''),
+                    'article': str(item.get('article', item.get('partNumber', ''))),
+                    'brand': str(item.get('brand', item.get('brandName', item.get('manufacturer', '')))),
+                    'name': str(item.get('name', item.get('description', item.get('title', '')))),
+                    'price': float(item.get('price', item.get('retailPrice', item.get('cost', 0))) or 0),
+                    'quantity': int(item.get('quantity', item.get('count', item.get('stock', 0))) or 0),
+                    'delivery_days': str(item.get('deliveryDays', item.get('delivery', item.get('period', ''))) or ''),
+                    'warehouse': str(item.get('warehouse', item.get('warehouseName', item.get('storage', ''))) or ''),
                 })
             return results
-    except Exception:
+    except urllib.error.HTTPError as e:
+        body = e.read()[:300]
+        print(f"[AVTORUS] HTTPError {e.code}: {body}")
+        return []
+    except Exception as ex:
+        print(f"[AVTORUS] Exception: {ex}")
         return []
 
 
@@ -180,7 +188,7 @@ def search_emex(article: str, login: str, password: str) -> list:
         }
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as r:
+        with urllib.request.urlopen(req, timeout=5) as r:
             raw = r.read().decode('utf-8')
             print(f"[EMEX] status={r.status} len={len(raw)}")
             print(f"[EMEX] body={raw[:800]}")
