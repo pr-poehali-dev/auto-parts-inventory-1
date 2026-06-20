@@ -27,7 +27,7 @@ def resp(code, body):
 
 
 def get_user_credentials(session_token: str):
-    """Получить учётные данные поставщиков из настроек по сессии"""
+    """Получить учётные данные поставщиков из настроек по сессии и user_id"""
     conn = psycopg2.connect(os.environ['DATABASE_URL'])
     try:
         cur = conn.cursor()
@@ -37,10 +37,12 @@ def get_user_credentials(session_token: str):
             JOIN {SCHEMA}.users u ON u.id = s.user_id
             WHERE s.token = %s AND s.expires_at > %s AND u.is_active = TRUE
         """, (session_token, now))
-        if not cur.fetchone():
+        row = cur.fetchone()
+        if not row:
             return None
+        user_id = str(row[0])
         keys_str = ', '.join(f"'{k}'" for k in SUPPLIER_KEYS)
-        cur.execute(f"SELECT key, value FROM {SCHEMA}.company_settings WHERE key IN ({keys_str})")
+        cur.execute(f"SELECT key, value FROM {SCHEMA}.company_settings WHERE user_id = %s AND key IN ({keys_str})", (user_id,))
         rows = cur.fetchall()
         return {r[0]: r[1] for r in rows if r[1]}
     finally:

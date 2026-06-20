@@ -301,7 +301,18 @@ def handler(event: dict, context) -> dict:
 
         # ── GET COMPANY SETTINGS ──────────────────────────────
         if method == 'GET' and action == 'company':
-            cur.execute(f"SELECT key, value FROM {SCHEMA}.company_settings")
+            token_hdr = (event.get('headers') or {}).get('X-Session-Token', '')
+            now = datetime.now(timezone.utc)
+            cur.execute(f"""
+                SELECT u.id FROM {SCHEMA}.sessions s
+                JOIN {SCHEMA}.users u ON u.id = s.user_id
+                WHERE s.token = %s AND s.expires_at > %s AND u.is_active = TRUE
+            """, (token_hdr, now))
+            row_u = cur.fetchone()
+            if not row_u:
+                return resp(200, {})
+            uid = str(row_u[0])
+            cur.execute(f"SELECT key, value FROM {SCHEMA}.company_settings WHERE user_id = %s", (uid,))
             rows = cur.fetchall()
             return resp(200, {r[0]: (r[1] or '') for r in rows})
 
@@ -316,8 +327,10 @@ def handler(event: dict, context) -> dict:
                 JOIN {SCHEMA}.users u ON u.id = s.user_id
                 WHERE s.token = %s AND s.expires_at > %s AND u.is_active = TRUE
             """, (token_hdr, now))
-            if not cur.fetchone():
+            row_u = cur.fetchone()
+            if not row_u:
                 return resp(401, {'error': 'Сессия истекла'})
+            uid = str(row_u[0])
 
             allowed = ['name', 'inn', 'ogrn', 'address', 'phone', 'email',
                        'exist_login', 'exist_password',
@@ -327,12 +340,12 @@ def handler(event: dict, context) -> dict:
             for key in allowed:
                 if key in body:
                     cur.execute(f"""
-                        INSERT INTO {SCHEMA}.company_settings (key, value)
-                        VALUES (%s, %s)
-                        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
-                    """, (key, (body[key] or '').strip()))
+                        INSERT INTO {SCHEMA}.company_settings (user_id, key, value)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (user_id, key) DO UPDATE SET value = EXCLUDED.value
+                    """, (uid, key, (body[key] or '').strip()))
             conn.commit()
-            cur.execute(f"SELECT key, value FROM {SCHEMA}.company_settings")
+            cur.execute(f"SELECT key, value FROM {SCHEMA}.company_settings WHERE user_id = %s", (uid,))
             rows = cur.fetchall()
             return resp(200, {r[0]: (r[1] or '') for r in rows})
 
