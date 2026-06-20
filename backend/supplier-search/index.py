@@ -49,7 +49,7 @@ def get_user_credentials(session_token: str):
 
 def search_avtorus(article: str, token: str) -> list:
     """Поиск по артикулу через API Авторусь (Bearer token)"""
-    payload = json.dumps({'article': article}).encode()
+    payload = json.dumps({'products': [{'article': article}]}).encode()
     url = "https://public.api.autorus.ru/papi/v1/product/offers"
     req = urllib.request.Request(url, data=payload, headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'})
     try:
