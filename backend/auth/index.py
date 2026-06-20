@@ -91,10 +91,11 @@ def handler(event: dict, context) -> dict:
 
             name = (body.get('name') or '').strip()
             pw_hash = hash_password(password)
+            free_until = (datetime.now(timezone.utc) + timedelta(days=90)).date()
             cur.execute(f"""
-                INSERT INTO {SCHEMA}.users (phone, email, password_hash, name)
-                VALUES (%s, %s, %s, %s) RETURNING id, email, phone, name
-            """, (phone or None, email, pw_hash, name or None))
+                INSERT INTO {SCHEMA}.users (phone, email, password_hash, name, free_until)
+                VALUES (%s, %s, %s, %s, %s) RETURNING id, email, phone, name
+            """, (phone or None, email, pw_hash, name or None, free_until))
             row = cur.fetchone()
             user_id = str(row[0])
 
