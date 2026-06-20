@@ -49,12 +49,13 @@ def get_user_credentials(session_token: str):
 
 def search_avtorus(article: str, token: str) -> list:
     """Поиск по артикулу через API Авторусь (Bearer token)"""
-    # Шаг 1: получить список брендов через GET
+    # Шаг 1: получить список брендов через POST
     brands = []
     try:
-        encoded = urllib.parse.quote(article)
+        brands_payload = json.dumps({'article': article, 'page': 1, 'perPage': 20}).encode()
         brands_req = urllib.request.Request(
-            f"https://public.api.autorus.ru/papi/v1/product/brands?article={encoded}",
+            "https://public.api.autorus.ru/papi/v1/product/brands",
+            data=brands_payload,
             headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
         )
         with urllib.request.urlopen(brands_req, timeout=10) as r:
