@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { ClientOrder, Client, OrderItem } from '@/data/mockData';
 import { getCompanySettings } from '@/api';
+import { useAuth } from '@/context/AuthContext';
 
 interface IssuedItem {
   orderId: string;
@@ -29,6 +30,7 @@ function clientName(c?: Client): string {
 }
 
 export default function InvoiceModal({ orders, client, onConfirm, onClose, loading }: Props) {
+  const { token } = useAuth();
   const printRef = useRef<HTMLDivElement>(null);
   const [company, setCompany] = useState<CompanySettings>({ name: '', inn: '', ogrn: '', address: '', phone: '', email: '' });
 
@@ -43,8 +45,8 @@ export default function InvoiceModal({ orders, client, onConfirm, onClose, loadi
   );
 
   useEffect(() => {
-    getCompanySettings().then((d: Record<string, string>) => setCompany(c => ({ ...c, ...d }))).catch(() => {});
-  }, []);
+    if (token) getCompanySettings(token).then((d: Record<string, string>) => setCompany(c => ({ ...c, ...d }))).catch(() => {});
+  }, [token]);
 
   const today = new Date().toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: 'numeric' });
 

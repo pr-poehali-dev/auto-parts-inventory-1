@@ -78,8 +78,8 @@ export default function ProfileMenu({ registerOpenIntegrations }: { registerOpen
   const [checkResults, setCheckResults] = useState<{ name: string; ok: boolean; error?: string }[] | null>(null);
 
   useEffect(() => {
-    getCompanySettings().then((d: Record<string, string>) => setCompany(c => ({ ...c, ...d }))).catch(() => {});
-  }, []);
+    if (token) getCompanySettings(token).then((d: Record<string, string>) => setCompany(c => ({ ...c, ...d }))).catch(() => {});
+  }, [token]);
 
   const handleCompanySave = async (e: React.FormEvent) => {
     e.preventDefault();

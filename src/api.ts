@@ -79,8 +79,8 @@ export const authLogout = (token: string) =>
   authReq(`${AUTH_URL}?action=logout`, 'POST', undefined, token);
 export const authUpdate = (token: string, data: { name?: string; phone?: string; password?: string; oldPassword?: string }) =>
   authReq(`${AUTH_URL}?action=update`, 'POST', data, token);
-export const getCompanySettings = () =>
-  authReq(`${AUTH_URL}?action=company`, 'GET');
+export const getCompanySettings = (token?: string) =>
+  authReq(`${AUTH_URL}?action=company`, 'GET', undefined, token);
 export const saveCompanySettings = (token: string, data: Record<string, string>) =>
   authReq(`${AUTH_URL}?action=company`, 'POST', data, token);
 
