@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 
 const PLANS = [
-  { months: 1,  label: '1 месяц',   price: 650,  pricePerMonth: 650,  badge: null },
-  { months: 3,  label: '3 месяца',  price: 1755, pricePerMonth: 585,  badge: '-10%' },
-  { months: 6,  label: '6 месяцев', price: 3315, pricePerMonth: 553,  badge: '-15%' },
-  { months: 12, label: '1 год',     price: 6240, pricePerMonth: 520,  badge: '-20%' },
+  { months: 1,  label: '1 месяц',   price: 450,  pricePerMonth: 450,  badge: null },
+  { months: 3,  label: '3 месяца',  price: 1215, pricePerMonth: 405,  badge: '-10%' },
+  { months: 6,  label: '6 месяцев', price: 2295, pricePerMonth: 383,  badge: '-15%' },
+  { months: 12, label: '1 год',     price: 4320, pricePerMonth: 360,  badge: '-20%' },
 ];
 
 export default function SubscriptionGate({ children }: { children: React.ReactNode }) {
