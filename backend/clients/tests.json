@@ -1,12 +1,12 @@
 {
   "tests": [
     {
-      "name": "GET all clients",
+      "name": "GET clients without token returns 401",
       "method": "GET",
       "path": "/",
-      "expectedStatus": 200,
-      "expectedBody": null,
-      "bodyMatcher": "ignore"
+      "expectedStatus": 401,
+      "expectedBody": {"error": "string"},
+      "bodyMatcher": "partial"
     }
   ]
 }

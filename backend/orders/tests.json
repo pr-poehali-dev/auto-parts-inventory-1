@@ -1,17 +1,17 @@
 {
   "tests": [
     {
-      "name": "GET all orders",
+      "name": "GET orders without token returns 401",
       "method": "GET",
       "path": "/",
-      "expectedStatus": 200,
+      "expectedStatus": 401,
       "bodyMatcher": "partial"
     },
     {
-      "name": "GET returns",
+      "name": "GET returns without token returns 401",
       "method": "GET",
       "path": "/?action=returns",
-      "expectedStatus": 200,
+      "expectedStatus": 401,
       "bodyMatcher": "partial"
     }
   ]

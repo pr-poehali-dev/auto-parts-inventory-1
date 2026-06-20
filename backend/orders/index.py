@@ -7,7 +7,6 @@ import psycopg2
 
 SCHEMA = 't_p26023881_auto_parts_inventory'
 
-# Допустимые статусы и их русские названия
 STATUSES = ['new', 'ordered', 'in_stock', 'issued', 'cancelled']
 
 def get_conn():
@@ -17,11 +16,23 @@ def cors_headers():
     return {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, X-Session-Token',
     }
 
 def resp(status, body):
     return {'statusCode': status, 'headers': {**cors_headers(), 'Content-Type': 'application/json'}, 'body': json.dumps(body, ensure_ascii=False, default=str)}
+
+def get_user_id(cur, token):
+    if not token:
+        return None
+    now = datetime.now(timezone.utc)
+    cur.execute(f"""
+        SELECT u.id FROM {SCHEMA}.sessions s
+        JOIN {SCHEMA}.users u ON u.id = s.user_id
+        WHERE s.token = %s AND s.expires_at > %s AND u.is_active = TRUE
+    """, (token, now))
+    row = cur.fetchone()
+    return str(row[0]) if row else None
 
 def row_to_order(cols, row):
     d = dict(zip(cols, row))
@@ -45,13 +56,14 @@ def now_iso():
     return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
 def handler(event: dict, context) -> dict:
-    """CRUD для заказов и баланса клиентов"""
+    """CRUD для заказов и баланса клиентов с привязкой к пользователю"""
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': cors_headers(), 'body': ''}
 
     method = event.get('httpMethod', 'GET')
     qs = event.get('queryStringParameters') or {}
     body_raw = event.get('body') or '{}'
+    token = (event.get('headers') or {}).get('X-Session-Token', '')
 
     order_id = qs.get('id')
     client_id_qs = qs.get('clientId')
@@ -61,6 +73,10 @@ def handler(event: dict, context) -> dict:
     cur = conn.cursor()
 
     try:
+        user_id = get_user_id(cur, token)
+        if not user_id:
+            return resp(401, {'error': 'Не авторизован'})
+
         # GET список заказов
         if method == 'GET' and action not in ('balance', 'returns'):
             if client_id_qs:
@@ -69,17 +85,18 @@ def handler(event: dict, context) -> dict:
                            c.balance as client_balance
                     FROM {SCHEMA}.client_orders o
                     JOIN {SCHEMA}.clients c ON c.id = o.client_id
-                    WHERE o.client_id = %s
+                    WHERE o.client_id = %s AND c.user_id = %s
                     ORDER BY o.date DESC, o.created_at DESC
-                """, (client_id_qs,))
+                """, (client_id_qs, user_id))
             else:
                 cur.execute(f"""
                     SELECT o.id, o.client_id, o.date, o.status, o.status_history, o.items, o.total, o.prepaid, o.note,
                            c.balance as client_balance
                     FROM {SCHEMA}.client_orders o
                     JOIN {SCHEMA}.clients c ON c.id = o.client_id
+                    WHERE c.user_id = %s
                     ORDER BY o.date DESC, o.created_at DESC
-                """)
+                """, (user_id,))
             cols = [d[0] for d in cur.description]
             rows = [row_to_order(cols, row) for row in cur.fetchall()]
             return resp(200, rows)
@@ -89,9 +106,9 @@ def handler(event: dict, context) -> dict:
             cur.execute(f"""
                 SELECT id, client_id, date, entry_type, amount, note, order_id
                 FROM {SCHEMA}.balance_entries
-                WHERE client_id = %s
+                WHERE client_id = %s AND user_id = %s
                 ORDER BY created_at DESC
-            """, (client_id_qs,))
+            """, (client_id_qs, user_id))
             cols = [d[0] for d in cur.description]
             rows = []
             for row in cur.fetchall():
@@ -105,6 +122,10 @@ def handler(event: dict, context) -> dict:
         # POST создать заказ
         if method == 'POST' and action not in ('balance', 'return'):
             body = json.loads(body_raw)
+            # Проверяем что клиент принадлежит этому пользователю
+            cur.execute(f"SELECT id FROM {SCHEMA}.clients WHERE id = %s AND user_id = %s", (body.get('clientId'), user_id))
+            if not cur.fetchone():
+                return resp(403, {'error': 'Клиент не найден'})
             oid = str(uuid.uuid4())
             items = body.get('items', [])
             total = sum(float(i.get('price', 0)) * int(i.get('quantity', 1)) for i in items)
@@ -128,13 +149,13 @@ def handler(event: dict, context) -> dict:
             cur.execute(f"""
                 UPDATE {SCHEMA}.clients
                 SET total_orders = total_orders + 1, balance = balance + %s
-                WHERE id = %s
-            """, (prepaid, body.get('clientId')))
+                WHERE id = %s AND user_id = %s
+            """, (prepaid, body.get('clientId'), user_id))
             if prepaid > 0:
                 cur.execute(f"""
-                    INSERT INTO {SCHEMA}.balance_entries (id, client_id, date, entry_type, amount, note, order_id)
-                    VALUES (%s,%s,%s,'prepaid',%s,'Предоплата по заказу',%s)
-                """, (str(uuid.uuid4()), body.get('clientId'), date.today().isoformat(), prepaid, oid))
+                    INSERT INTO {SCHEMA}.balance_entries (id, client_id, date, entry_type, amount, note, order_id, user_id)
+                    VALUES (%s,%s,%s,'prepaid',%s,'Предоплата по заказу',%s,%s)
+                """, (str(uuid.uuid4()), body.get('clientId'), date.today().isoformat(), prepaid, oid, user_id))
             conn.commit()
             return resp(201, row_to_order(cols, row))
 
@@ -142,14 +163,18 @@ def handler(event: dict, context) -> dict:
         if method == 'POST' and action == 'balance':
             body = json.loads(body_raw)
             cid = body.get('clientId')
+            # Проверяем владельца клиента
+            cur.execute(f"SELECT id FROM {SCHEMA}.clients WHERE id = %s AND user_id = %s", (cid, user_id))
+            if not cur.fetchone():
+                return resp(403, {'error': 'Клиент не найден'})
             entry_type = body.get('type', 'add')
             amount = float(body.get('amount', 0))
             sign = 1 if entry_type == 'add' else -1
             cur.execute(f"UPDATE {SCHEMA}.clients SET balance = balance + %s WHERE id = %s", (sign * amount, cid))
             cur.execute(f"""
-                INSERT INTO {SCHEMA}.balance_entries (id, client_id, date, entry_type, amount, note)
-                VALUES (%s,%s,%s,%s,%s,%s)
-            """, (str(uuid.uuid4()), cid, date.today().isoformat(), entry_type, amount, body.get('note')))
+                INSERT INTO {SCHEMA}.balance_entries (id, client_id, date, entry_type, amount, note, user_id)
+                VALUES (%s,%s,%s,%s,%s,%s,%s)
+            """, (str(uuid.uuid4()), cid, date.today().isoformat(), entry_type, amount, body.get('note'), user_id))
             cur.execute(f"SELECT balance FROM {SCHEMA}.clients WHERE id = %s", (cid,))
             new_balance = float(cur.fetchone()[0])
             conn.commit()
@@ -158,13 +183,21 @@ def handler(event: dict, context) -> dict:
         # PUT обновить заказ
         if method == 'PUT' and order_id:
             body = json.loads(body_raw)
+            # Проверяем что заказ принадлежит этому пользователю через клиента
+            cur.execute(f"""
+                SELECT o.id FROM {SCHEMA}.client_orders o
+                JOIN {SCHEMA}.clients c ON c.id = o.client_id
+                WHERE o.id = %s AND c.user_id = %s
+            """, (order_id, user_id))
+            if not cur.fetchone():
+                return resp(403, {'error': 'Заказ не найден'})
+
             fields = []
             values = []
 
             if 'status' in body:
                 new_status = body['status']
                 note = body.get('statusNote', '')
-                # Дописываем в историю
                 cur.execute(f"SELECT status_history FROM {SCHEMA}.client_orders WHERE id = %s", (order_id,))
                 hist_row = cur.fetchone()
                 history = hist_row[0] if hist_row and hist_row[0] else []
@@ -181,14 +214,12 @@ def handler(event: dict, context) -> dict:
                     ord_row = cur.fetchone()
                     if ord_row:
                         client_id_ord, total_ord, old_status = ord_row[0], float(ord_row[1]), ord_row[2]
-                        # Пересчитываем total без возвращённых позиций
                         ord_items = ord_row[3] if isinstance(ord_row[3], list) else json.loads(ord_row[3] or '[]')
                         active_total = sum(
                             float(i.get('price', 0)) * int(i.get('quantity', 1))
                             for i in ord_items if i.get('status') != 'returned'
                         )
                         total_ord = active_total if active_total > 0 else total_ord
-                        # Списываем сумму заказа с баланса только если статус меняется впервые на issued
                         if old_status != 'issued':
                             cur.execute(f"""
                                 UPDATE {SCHEMA}.clients
@@ -196,9 +227,9 @@ def handler(event: dict, context) -> dict:
                                 WHERE id = %s
                             """, (total_ord, total_ord, client_id_ord))
                             cur.execute(f"""
-                                INSERT INTO {SCHEMA}.balance_entries (id, client_id, date, entry_type, amount, note, order_id)
-                                VALUES (%s, %s, %s, 'remove', %s, 'Выдача заказа', %s)
-                            """, (str(uuid.uuid4()), client_id_ord, date.today().isoformat(), total_ord, order_id))
+                                INSERT INTO {SCHEMA}.balance_entries (id, client_id, date, entry_type, amount, note, order_id, user_id)
+                                VALUES (%s, %s, %s, 'remove', %s, 'Выдача заказа', %s, %s)
+                            """, (str(uuid.uuid4()), client_id_ord, date.today().isoformat(), total_ord, order_id, user_id))
 
             if 'prepaid' in body:
                 new_prepaid = float(body['prepaid'])
@@ -211,9 +242,9 @@ def handler(event: dict, context) -> dict:
                     cur.execute(f"UPDATE {SCHEMA}.clients SET balance = balance + %s WHERE id = %s", (diff, old_row[1]))
                     if diff != 0:
                         cur.execute(f"""
-                            INSERT INTO {SCHEMA}.balance_entries (id, client_id, date, entry_type, amount, note, order_id)
-                            VALUES (%s,%s,%s,'prepaid',%s,'Изменение предоплаты',%s)
-                        """, (str(uuid.uuid4()), old_row[1], date.today().isoformat(), abs(diff), order_id))
+                            INSERT INTO {SCHEMA}.balance_entries (id, client_id, date, entry_type, amount, note, order_id, user_id)
+                            VALUES (%s,%s,%s,'prepaid',%s,'Изменение предоплаты',%s,%s)
+                        """, (str(uuid.uuid4()), old_row[1], date.today().isoformat(), abs(diff), order_id, user_id))
 
             if 'note' in body:
                 fields.append('note = %s')
@@ -221,7 +252,6 @@ def handler(event: dict, context) -> dict:
 
             if 'items' in body:
                 new_items = body['items']
-                # Не считаем возвращённые позиции в total
                 new_total = sum(
                     float(i.get('price', 0)) * int(i.get('quantity', 1))
                     for i in new_items if i.get('status') != 'returned'
@@ -250,8 +280,9 @@ def handler(event: dict, context) -> dict:
                        c.phone as client_phone
                 FROM {SCHEMA}.order_returns r
                 JOIN {SCHEMA}.clients c ON c.id = r.client_id
+                WHERE c.user_id = %s
                 ORDER BY r.created_at DESC
-            """)
+            """, (user_id,))
             rows = []
             for row in cur.fetchall():
                 items = row[3] if isinstance(row[3], list) else json.loads(row[3])
@@ -273,33 +304,30 @@ def handler(event: dict, context) -> dict:
             if not ret_order_id or not ret_items:
                 return resp(400, {'error': 'orderId и items обязательны'})
 
-            # Считаем сумму возврата
             amount = sum(float(i.get('price', 0)) * int(i.get('quantity', 1)) for i in ret_items)
 
-            # Находим клиента заказа
-            cur.execute(f"SELECT client_id FROM {SCHEMA}.client_orders WHERE id = %s", (ret_order_id,))
+            cur.execute(f"""
+                SELECT o.client_id FROM {SCHEMA}.client_orders o
+                JOIN {SCHEMA}.clients c ON c.id = o.client_id
+                WHERE o.id = %s AND c.user_id = %s
+            """, (ret_order_id, user_id))
             ord_row = cur.fetchone()
             if not ord_row:
                 return resp(404, {'error': 'Заказ не найден'})
             client_id_ret = ord_row[0]
 
-            # Сохраняем возврат
             ret_id = str(uuid.uuid4())
             cur.execute(f"""
                 INSERT INTO {SCHEMA}.order_returns (id, order_id, client_id, items, amount, reason)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, (ret_id, ret_order_id, client_id_ret, json.dumps(ret_items, ensure_ascii=False), amount, reason))
 
-            # Помечаем возвращённые позиции в заказе статусом 'returned'
             cur.execute(f"SELECT items FROM {SCHEMA}.client_orders WHERE id = %s", (ret_order_id,))
             items_row = cur.fetchone()
+            updated_items = []
+            all_returned = False
             if items_row:
                 order_items = items_row[0] if isinstance(items_row[0], list) else json.loads(items_row[0])
-                # Собираем имена/артикулы возвращаемых позиций для сопоставления
-                ret_names = [i.get('name', '') for i in ret_items]
-                ret_articles = [i.get('article', '') for i in ret_items]
-                updated_items = []
-                ret_idx = list(range(len(ret_items)))  # отслеживаем какие ret_items уже использовали
                 for oi in order_items:
                     matched = False
                     for ri in ret_items:
@@ -310,7 +338,6 @@ def handler(event: dict, context) -> dict:
                             break
                     if not matched:
                         updated_items.append(oi)
-                # Проверяем — все ли позиции возвращены
                 all_returned = all(i.get('status') == 'returned' for i in updated_items)
                 new_order_status = 'cancelled' if all_returned else None
                 cur.execute(f"UPDATE {SCHEMA}.client_orders SET items = %s WHERE id = %s",
@@ -319,30 +346,33 @@ def handler(event: dict, context) -> dict:
                     cur.execute(f"UPDATE {SCHEMA}.client_orders SET status = %s WHERE id = %s",
                                 (new_order_status, ret_order_id))
 
-            # Списываем сумму возврата с баланса (деньги выдаются клиенту наличными)
             cur.execute(f"UPDATE {SCHEMA}.clients SET balance = balance - %s WHERE id = %s", (amount, client_id_ret))
             cur.execute(f"""
-                INSERT INTO {SCHEMA}.balance_entries (id, client_id, date, entry_type, amount, note, order_id)
-                VALUES (%s, %s, %s, 'remove', %s, %s, %s)
+                INSERT INTO {SCHEMA}.balance_entries (id, client_id, date, entry_type, amount, note, order_id, user_id)
+                VALUES (%s, %s, %s, 'remove', %s, %s, %s, %s)
             """, (str(uuid.uuid4()), client_id_ret, date.today().isoformat(), amount,
-                  f'Возврат позиции: {", ".join(i.get("name","") for i in ret_items)}', ret_order_id))
+                  f'Возврат позиции: {", ".join(i.get("name","") for i in ret_items)}', ret_order_id, user_id))
 
             conn.commit()
             return resp(201, {
                 'id': ret_id,
                 'amount': amount,
                 'clientId': str(client_id_ret),
-                'updatedItems': updated_items if items_row else [],
-                'orderCancelled': bool(all_returned) if items_row else False,
+                'updatedItems': updated_items,
+                'orderCancelled': bool(all_returned),
             })
 
         # DELETE заказ
         if method == 'DELETE' and order_id:
-            cur.execute(f"SELECT client_id, total, status FROM {SCHEMA}.client_orders WHERE id = %s", (order_id,))
+            cur.execute(f"""
+                SELECT o.client_id, o.total, o.status FROM {SCHEMA}.client_orders o
+                JOIN {SCHEMA}.clients c ON c.id = o.client_id
+                WHERE o.id = %s AND c.user_id = %s
+            """, (order_id, user_id))
             row = cur.fetchone()
             if not row:
                 return resp(404, {'error': 'Заказ не найден'})
-            client_id_del, total_del, status_del = row[0], float(row[1]), row[2]
+            client_id_del = row[0]
             cur.execute(f"DELETE FROM {SCHEMA}.balance_entries WHERE order_id = %s", (order_id,))
             cur.execute(f"DELETE FROM {SCHEMA}.client_orders WHERE id = %s", (order_id,))
             cur.execute(f"UPDATE {SCHEMA}.clients SET total_orders = GREATEST(total_orders - 1, 0) WHERE id = %s", (client_id_del,))

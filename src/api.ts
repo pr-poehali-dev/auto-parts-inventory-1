@@ -7,10 +7,17 @@ const ORDERS_URL = func2url.orders;
 const DECODE_VIN_URL = (func2url as Record<string, string>)['decode-vin'];
 const AUTH_URL = func2url.auth;
 
+function getToken(): string {
+  return localStorage.getItem('pk_token') || '';
+}
+
 async function req(url: string, method = 'GET', body?: unknown) {
+  const token = getToken();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['X-Session-Token'] = token;
   const res = await fetch(url, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) throw new Error(await res.text());

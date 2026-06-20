@@ -1,11 +1,10 @@
 {
   "tests": [
     {
-      "name": "GET all parts",
+      "name": "GET parts without token returns 401",
       "method": "GET",
-      "path": "/?id=0ca86855-06ae-4054-80b8-36d7a8448cee",
-      "expectedStatus": 200,
-      "expectedBody": {"id": "0ca86855-06ae-4054-80b8-36d7a8448cee", "cost_price": "0.00"},
+      "path": "/",
+      "expectedStatus": 401,
       "bodyMatcher": "partial"
     }
   ]
