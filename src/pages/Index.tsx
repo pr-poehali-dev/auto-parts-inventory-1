@@ -9,8 +9,8 @@ import AdminSection from '@/components/AdminSection';
 import PartDetailModal from '@/components/PartDetailModal';
 import AuthScreen from '@/components/AuthScreen';
 import ProfileMenu from '@/components/ProfileMenu';
-import { Part } from '@/data/mockData';
-import { getParts, logVisit } from '@/api';
+import { Part, Client } from '@/data/mockData';
+import { getParts, logVisit, SupplierResult } from '@/api';
 import { useAuth } from '@/context/AuthContext';
 
 const ADMIN_PHONE = '+79680066666';
@@ -33,6 +33,7 @@ export default function Index() {
   const [lowStockCount, setLowStockCount] = useState(0);
   const [stockKey, setStockKey] = useState(0);
   const openApiSettingsRef = useRef<() => void>(() => {});
+  const [pendingOrder, setPendingOrder] = useState<{ item: SupplierResult; client: Client } | null>(null);
 
   const isAdmin = user?.phone?.replace(/[\s-]/g, '') === ADMIN_PHONE;
 
@@ -136,8 +137,8 @@ export default function Index() {
           <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
         </div>
 
-        {activeTab === 'search' && <SearchSection onSelectPart={setSelectedPart} onOpenApiSettings={() => openApiSettingsRef.current()} />}
-        {activeTab === 'clients' && <ClientsSection />}
+        {activeTab === 'search' && <SearchSection onSelectPart={setSelectedPart} onOpenApiSettings={() => openApiSettingsRef.current()} onAddToOrder={(item, client) => { setPendingOrder({ item, client }); setActiveTab('clients'); }} />}
+        {activeTab === 'clients' && <ClientsSection pendingOrder={pendingOrder} onPendingOrderHandled={() => setPendingOrder(null)} />}
         {activeTab === 'orders' && <OrdersSection />}
         {activeTab === 'stock' && <StockSection key={stockKey} onSelectPart={setSelectedPart} />}
         {activeTab === 'analytics' && <AnalyticsSection key={Date.now()} />}

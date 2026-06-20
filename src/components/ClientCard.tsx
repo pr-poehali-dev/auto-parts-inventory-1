@@ -10,9 +10,10 @@ import OrderFormModal from '@/components/OrderFormModal';
 interface Props {
   client: Client;
   onBack: () => void;
+  prefilledItems?: OrderItem[] | null;
 }
 
-export default function ClientCard({ client, onBack }: Props) {
+export default function ClientCard({ client, onBack, prefilledItems }: Props) {
   const [orders, setOrders] = useState<ClientOrder[]>([]);
   const [balance, setBalance] = useState(client.balance);
   const [balanceHistory, setBalanceHistory] = useState<BalanceEntry[]>([]);
@@ -20,12 +21,12 @@ export default function ClientCard({ client, onBack }: Props) {
   const [loading, setLoading] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
 
-  const [showNewOrder, setShowNewOrder] = useState(false);
+  const [showNewOrder, setShowNewOrder] = useState(!!prefilledItems);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [savingOrder, setSavingOrder] = useState(false);
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([
-    { article: '', name: '', brand: '', quantity: 1, price: 0, costPrice: 0 },
-  ]);
+  const [orderItems, setOrderItems] = useState<OrderItem[]>(
+    prefilledItems ?? [{ article: '', name: '', brand: '', quantity: 1, price: 0, costPrice: 0 }]
+  );
   const [orderNote, setOrderNote] = useState('');
   const [orderPrepaid, setOrderPrepaid] = useState(0);
   const [articleQuery, setArticleQuery] = useState<Record<number, string>>({});

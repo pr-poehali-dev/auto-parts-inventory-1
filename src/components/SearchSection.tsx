@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import Icon from '@/components/ui/icon';
 import EmptyBackground from '@/components/ui/empty-background';
-import { Part } from '@/data/mockData';
-import { getParts, searchSuppliers, SupplierResult } from '@/api';
+import { Part, Client } from '@/data/mockData';
+import { getParts, searchSuppliers, SupplierResult, getClients } from '@/api';
 import { useAuth } from '@/context/AuthContext';
 
 interface SearchSectionProps {
   onSelectPart: (part: Part) => void;
   onOpenApiSettings: () => void;
+  onAddToOrder?: (item: SupplierResult, client: Client) => void;
 }
 
 interface SearchResult {
@@ -67,7 +68,7 @@ const stockBadge = (qty: number, min: number) => {
   return <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded shrink-0">{qty} шт</span>;
 };
 
-export default function SearchSection({ onSelectPart, onOpenApiSettings }: SearchSectionProps) {
+export default function SearchSection({ onSelectPart, onOpenApiSettings, onAddToOrder }: SearchSectionProps) {
   const { token } = useAuth();
   const [allParts, setAllParts] = useState<Part[]>([]);
   const [query, setQuery] = useState('');
@@ -79,6 +80,27 @@ export default function SearchSection({ onSelectPart, onOpenApiSettings }: Searc
   const [externalExpanded, setExternalExpanded] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const externalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pendingItem, setPendingItem] = useState<SupplierResult | null>(null);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [clientSearch, setClientSearch] = useState('');
+  const [clientsLoading, setClientsLoading] = useState(false);
+
+  const handleAddToOrder = (item: SupplierResult) => {
+    setPendingItem(item);
+    setClientSearch('');
+    setClientsLoading(true);
+    getClients().then((data: unknown[]) => {
+      setClients((data as Client[]).filter((c: Client) => !c.isDeleted));
+      setClientsLoading(false);
+    }).catch(() => setClientsLoading(false));
+  };
+
+  const handleSelectClient = (client: Client) => {
+    if (pendingItem && onAddToOrder) {
+      onAddToOrder(pendingItem, client);
+    }
+    setPendingItem(null);
+  };
 
   useEffect(() => {
     getParts().then((data: unknown[]) => setAllParts(data.map(dbToPart)));
@@ -358,10 +380,19 @@ export default function SearchSection({ onSelectPart, onOpenApiSettings }: Searc
                         <div className="text-sm text-muted-foreground truncate mt-0.5">{r.name}</div>
                         {r.warehouse && <div className="text-xs text-muted-foreground/60 mt-0.5">{r.warehouse}</div>}
                       </div>
-                      <div className="text-right shrink-0">
-                        {r.price > 0 && <div className="text-sm font-semibold">{r.price.toLocaleString()} ₽</div>}
-                        {r.quantity > 0 && <div className="text-xs text-emerald-600">{r.quantity} шт</div>}
-                        {r.delivery_days && <div className="text-xs text-muted-foreground">{r.delivery_days}</div>}
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="text-right">
+                          {r.price > 0 && <div className="text-sm font-semibold">{r.price.toLocaleString()} ₽</div>}
+                          {r.quantity > 0 && <div className="text-xs text-emerald-600">{r.quantity} шт</div>}
+                          {r.delivery_days && <div className="text-xs text-muted-foreground">{r.delivery_days}</div>}
+                        </div>
+                        <button
+                          onClick={() => handleAddToOrder(r)}
+                          className="flex items-center gap-1 text-xs bg-foreground text-background px-2.5 py-1.5 rounded-md hover:bg-foreground/80 transition-colors shrink-0"
+                        >
+                          <Icon name="Plus" size={12} />
+                          В заказ
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -395,6 +426,64 @@ export default function SearchSection({ onSelectPart, onOpenApiSettings }: Searc
             subtext="При вводе OEM-системы будут найдены все заменители на складе."
           />
         </>
+      )}
+
+      {/* Модальное окно выбора клиента */}
+      {pendingItem && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col">
+            <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+              <div>
+                <div className="font-semibold text-sm">Выберите клиента</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {pendingItem.article} · {pendingItem.brand} · {pendingItem.price.toLocaleString()} ₽
+                </div>
+              </div>
+              <button onClick={() => setPendingItem(null)} className="text-muted-foreground hover:text-foreground">
+                <Icon name="X" size={18} />
+              </button>
+            </div>
+            <div className="px-4 py-2 border-b border-border">
+              <input
+                type="text"
+                value={clientSearch}
+                onChange={(e) => setClientSearch(e.target.value)}
+                placeholder="Поиск клиента..."
+                autoFocus
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {clientsLoading ? (
+                <div className="flex items-center justify-center py-8 text-muted-foreground">
+                  <Icon name="Loader" size={18} className="animate-spin" />
+                </div>
+              ) : (
+                clients
+                  .filter((c) =>
+                    !clientSearch ||
+                    c.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
+                    c.phone?.includes(clientSearch)
+                  )
+                  .map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => handleSelectClient(c)}
+                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-muted/50 transition-colors text-left border-b border-border last:border-0"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium shrink-0">
+                        {c.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium truncate">{c.name}</div>
+                        {c.phone && <div className="text-xs text-muted-foreground">{c.phone}</div>}
+                      </div>
+                    </button>
+                  ))
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

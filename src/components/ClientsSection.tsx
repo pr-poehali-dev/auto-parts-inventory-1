@@ -1,18 +1,24 @@
 import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
-import { Client, ClientOrder } from '@/data/mockData';
-import { getClients, getClient, createClient, updateClient, getOrders } from '@/api';
+import { Client, ClientOrder, OrderItem } from '@/data/mockData';
+import { getClients, getClient, createClient, updateClient, getOrders, SupplierResult } from '@/api';
 import ClientCard from '@/components/ClientCard';
 import { dbToClient, isNew, hasDebt, hasActive } from '@/components/clients/clientsUtils';
 import ClientsSidebar from '@/components/clients/ClientsSidebar';
 import ClientsList from '@/components/clients/ClientsList';
 import AddClientModal from '@/components/clients/AddClientModal';
 
-export default function ClientsSection() {
+interface ClientsSectionProps {
+  pendingOrder?: { item: SupplierResult; client: Client } | null;
+  onPendingOrderHandled?: () => void;
+}
+
+export default function ClientsSection({ pendingOrder, onPendingOrderHandled }: ClientsSectionProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [orders, setOrders] = useState<ClientOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Client | null>(null);
+  const [prefilledItems, setPrefilledItems] = useState<OrderItem[] | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
@@ -26,6 +32,25 @@ export default function ClientsSection() {
       getOrders().then((data: ClientOrder[]) => setOrders(data)),
     ]).finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (pendingOrder) {
+      const { item, client } = pendingOrder;
+      const newItem: OrderItem = {
+        article: item.article,
+        name: item.name,
+        brand: item.brand,
+        quantity: 1,
+        price: item.price,
+        costPrice: item.price,
+      };
+      setPrefilledItems([newItem]);
+      getClient(client.id)
+        .then((fresh) => setSelected(dbToClient(fresh as Record<string, unknown>)))
+        .catch(() => setSelected(client));
+      onPendingOrderHandled?.();
+    }
+  }, [pendingOrder]);
 
   const toggleSort = (field: typeof sortBy) => {
     if (sortBy === field) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -108,8 +133,10 @@ export default function ClientsSection() {
     return (
       <ClientCard
         client={selected}
+        prefilledItems={prefilledItems}
         onBack={() => {
           setSelected(null);
+          setPrefilledItems(null);
           getClients().then((data: unknown[]) => setClients(data.map(dbToClient)));
           getOrders().then((data: ClientOrder[]) => setOrders(data));
         }}
