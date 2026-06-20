@@ -16,7 +16,8 @@ function PasswordInput({ value, onChange, placeholder, autoComplete }: {
     <div className="relative">
       <input
         type={show ? 'text' : 'password'}
-        autoComplete={autoComplete}
+        autoComplete="new-password"
+        name={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
