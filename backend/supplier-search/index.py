@@ -89,18 +89,36 @@ def search_avtorus(article: str, token: str) -> list:
                 raw = r.read()
                 print(f"[AVTORUS] offers brand={brand} status={r.status} response={raw[:500]}")
                 data = json.loads(raw)
-                items = data if isinstance(data, list) else data.get('data', data.get('items', data.get('offers', [])))
+                items = data if isinstance(data, list) else data.get('data', data.get('items', []))
                 for item in items[:10]:
-                    results.append({
-                        'source': 'Авторусь',
-                        'article': str(item.get('article', item.get('partNumber', article))),
-                        'brand': str(item.get('brand', item.get('brandName', brand))),
-                        'name': str(item.get('name', item.get('description', item.get('title', '')))),
-                        'price': float(item.get('price', item.get('retailPrice', item.get('cost', 0))) or 0),
-                        'quantity': int(item.get('quantity', item.get('count', item.get('stock', 0))) or 0),
-                        'delivery_days': str(item.get('deliveryDays', item.get('delivery', item.get('period', ''))) or ''),
-                        'warehouse': str(item.get('warehouse', item.get('warehouseName', item.get('storage', ''))) or ''),
-                    })
+                    item_brand = str(item.get('brand', brand))
+                    item_article = str(item.get('partNumber', article))
+                    item_name = str(item.get('title', item.get('name', '')))
+                    # offers — вложенный массив предложений с ценами
+                    offers = item.get('offers', [])
+                    if offers:
+                        for offer in offers[:5]:
+                            results.append({
+                                'source': 'Авторусь',
+                                'article': item_article,
+                                'brand': item_brand,
+                                'name': item_name,
+                                'price': float(offer.get('price', 0) or 0),
+                                'quantity': int(offer.get('quantity', 0) or 0),
+                                'delivery_days': str(offer.get('availableInHours', '') or ''),
+                                'warehouse': str(offer.get('warehouse', '') or ''),
+                            })
+                    else:
+                        results.append({
+                            'source': 'Авторусь',
+                            'article': item_article,
+                            'brand': item_brand,
+                            'name': item_name,
+                            'price': 0,
+                            'quantity': 0,
+                            'delivery_days': '',
+                            'warehouse': '',
+                        })
         except urllib.error.HTTPError as e:
             body = e.read()[:300]
             print(f"[AVTORUS] offers HTTPError {e.code} brand={brand}: {body}")
