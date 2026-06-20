@@ -50,7 +50,7 @@ def get_user_credentials(session_token: str):
 def search_avtorus(article: str, token: str) -> list:
     """Поиск по артикулу через API Авторусь (Bearer token)"""
     payload = json.dumps({'article': article}).encode()
-    url = "https://public.api.avtorus.ru/papi/v1/product/offers"
+    url = "https://public.api.autorus.ru/papi/v1/product/offers"
     req = urllib.request.Request(url, data=payload, headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'})
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
@@ -265,7 +265,7 @@ def check_emex(login: str, password: str) -> dict:
 
 def check_avtorus(token: str) -> dict:
     """Проверка подключения к Авторусь"""
-    url = "https://public.api.avtorus.ru/papi/v1/profile/me"
+    url = "https://public.api.autorus.ru/papi/v1/profile/me"
     req = urllib.request.Request(url, headers={'Authorization': f'Bearer {token}'})
     try:
         with urllib.request.urlopen(req, timeout=8) as r:
