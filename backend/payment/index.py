@@ -10,10 +10,10 @@ SCHEMA = 't_p26023881_auto_parts_inventory'
 ADMIN_PHONE = '+79680066666'
 
 PLANS = {
-    1:  {'days': 30,  'amount': 65000,  'label': '1 месяц'},
-    3:  {'days': 90,  'amount': 175500, 'label': '3 месяца'},
-    6:  {'days': 180, 'amount': 331500, 'label': '6 месяцев'},
-    12: {'days': 365, 'amount': 624000, 'label': '1 год'},
+    1:  {'days': 30,  'amount': 45000,  'label': '1 месяц'},
+    3:  {'days': 90,  'amount': 121500, 'label': '3 месяца'},
+    6:  {'days': 180, 'amount': 229500, 'label': '6 месяцев'},
+    12: {'days': 365, 'amount': 432000, 'label': '1 год'},
 }
 
 def get_conn():
