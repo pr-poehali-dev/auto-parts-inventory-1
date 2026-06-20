@@ -49,36 +49,59 @@ def get_user_credentials(session_token: str):
 
 def search_avtorus(article: str, token: str) -> list:
     """Поиск по артикулу через API Авторусь (Bearer token)"""
-    payload = json.dumps({'products': [{'article': article, 'brand': ''}]}).encode()
-    url = "https://public.api.autorus.ru/papi/v1/product/offers"
-    req = urllib.request.Request(url, data=payload, headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'})
+    # Шаг 1: получить список брендов по артикулу
+    brands = []
     try:
-        with urllib.request.urlopen(req, timeout=10) as r:
+        brands_payload = json.dumps({'article': article}).encode()
+        brands_req = urllib.request.Request(
+            "https://public.api.autorus.ru/papi/v1/product/brands",
+            data=brands_payload,
+            headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+        )
+        with urllib.request.urlopen(brands_req, timeout=10) as r:
             raw = r.read()
-            print(f"[AVTORUS] status={r.status} len={len(raw)}")
-            print(f"[AVTORUS] response={raw[:800]}")
+            print(f"[AVTORUS] brands status={r.status} response={raw[:500]}")
             data = json.loads(raw)
-            items = data if isinstance(data, list) else data.get('data', data.get('items', data.get('offers', [])))
-            results = []
-            for item in items[:20]:
-                results.append({
-                    'source': 'Авторусь',
-                    'article': str(item.get('article', item.get('partNumber', ''))),
-                    'brand': str(item.get('brand', item.get('brandName', item.get('manufacturer', '')))),
-                    'name': str(item.get('name', item.get('description', item.get('title', '')))),
-                    'price': float(item.get('price', item.get('retailPrice', item.get('cost', 0))) or 0),
-                    'quantity': int(item.get('quantity', item.get('count', item.get('stock', 0))) or 0),
-                    'delivery_days': str(item.get('deliveryDays', item.get('delivery', item.get('period', ''))) or ''),
-                    'warehouse': str(item.get('warehouse', item.get('warehouseName', item.get('storage', ''))) or ''),
-                })
-            return results
-    except urllib.error.HTTPError as e:
-        body = e.read()[:300]
-        print(f"[AVTORUS] HTTPError {e.code}: {body}")
-        return []
+            items = data if isinstance(data, list) else data.get('data', data.get('items', data.get('brands', [])))
+            brands = [str(b.get('brand', b.get('name', b.get('brandName', b)))) for b in items if isinstance(b, dict)]
+            if not brands and items:
+                brands = [str(b) for b in items]
     except Exception as ex:
-        print(f"[AVTORUS] Exception: {ex}")
+        print(f"[AVTORUS] brands Exception: {ex}")
+
+    if not brands:
+        print(f"[AVTORUS] no brands found for article={article}")
         return []
+
+    # Шаг 2: получить предложения по артикулу + бренд
+    results = []
+    for brand in brands[:5]:
+        try:
+            offers_payload = json.dumps({'products': [{'article': article, 'brand': brand}]}).encode()
+            offers_req = urllib.request.Request(
+                "https://public.api.autorus.ru/papi/v1/product/offers",
+                data=offers_payload,
+                headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+            )
+            with urllib.request.urlopen(offers_req, timeout=10) as r:
+                raw = r.read()
+                print(f"[AVTORUS] offers brand={brand} status={r.status} response={raw[:500]}")
+                data = json.loads(raw)
+                items = data if isinstance(data, list) else data.get('data', data.get('items', data.get('offers', [])))
+                for item in items[:10]:
+                    results.append({
+                        'source': 'Авторусь',
+                        'article': str(item.get('article', item.get('partNumber', article))),
+                        'brand': str(item.get('brand', item.get('brandName', brand))),
+                        'name': str(item.get('name', item.get('description', item.get('title', '')))),
+                        'price': float(item.get('price', item.get('retailPrice', item.get('cost', 0))) or 0),
+                        'quantity': int(item.get('quantity', item.get('count', item.get('stock', 0))) or 0),
+                        'delivery_days': str(item.get('deliveryDays', item.get('delivery', item.get('period', ''))) or ''),
+                        'warehouse': str(item.get('warehouse', item.get('warehouseName', item.get('storage', ''))) or ''),
+                    })
+        except Exception as ex:
+            print(f"[AVTORUS] offers Exception brand={brand}: {ex}")
+    return results[:20]
 
 
 def search_exist(article: str, login: str, password: str) -> list:
