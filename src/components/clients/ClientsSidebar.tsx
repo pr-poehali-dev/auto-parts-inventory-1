@@ -82,7 +82,7 @@ export default function ClientsSidebar({
             { id: 'all', label: 'Все клиенты', icon: 'Users' },
             { id: 'new', label: 'Новые', icon: 'UserPlus' },
             { id: 'debt', label: 'Долг по балансу', icon: 'AlertTriangle' },
-            { id: 'active', label: 'С активными заказами', icon: 'ShoppingCart' },
+            { id: 'active', label: 'С активн. заказами', icon: 'ShoppingCart' },
             { id: 'deleted', label: 'Удалённые', icon: 'Trash2' },
           ] as const).map((g, i, arr) => (
             <button
