@@ -192,13 +192,13 @@ def handler(event: dict, context) -> dict:
             """)
             by_page = [{'page': r[0], 'count': r[1]} for r in cur.fetchall()]
 
-            cur.execute(f"SELECT COUNT(*) FROM {SCHEMA}.page_visits WHERE visited_at >= DATE_TRUNC('day', NOW() AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'Europe/Moscow'")
+            cur.execute(f"SELECT COUNT(*) FROM {SCHEMA}.page_visits WHERE visited_at >= DATE_TRUNC('day', NOW() + INTERVAL '3 hours') - INTERVAL '3 hours'")
             today = cur.fetchone()[0]
             cur.execute(f"SELECT COUNT(*) FROM {SCHEMA}.page_visits WHERE visited_at >= NOW() - INTERVAL '7 days'")
             week = cur.fetchone()[0]
             cur.execute(f"SELECT COUNT(*) FROM {SCHEMA}.page_visits WHERE visited_at >= NOW() - INTERVAL '30 days'")
             month = cur.fetchone()[0]
-            cur.execute(f"SELECT COUNT(DISTINCT ip) FROM {SCHEMA}.page_visits WHERE visited_at >= DATE_TRUNC('day', NOW() AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'Europe/Moscow'")
+            cur.execute(f"SELECT COUNT(DISTINCT ip) FROM {SCHEMA}.page_visits WHERE visited_at >= DATE_TRUNC('day', NOW() + INTERVAL '3 hours') - INTERVAL '3 hours'")
             today_uniq = cur.fetchone()[0]
 
             return resp(200, {
