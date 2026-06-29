@@ -203,7 +203,7 @@ export default function ClientInfoCard({
         </div>
         <div className="text-center">
           <div className="text-2xl font-bold font-mono-data text-amber-600">
-            {(() => { console.log('ORDERS STATUSES:', orders.map(o => o.status)); return orders.filter((o) => !['done', 'cancelled', 'issued'].includes(o.status)).length; })()}
+            {orders.filter((o) => !['done', 'cancelled', 'issued'].includes(o.status)).length}
           </div>
           <div className="text-xs text-muted-foreground mt-0.5">В работе</div>
         </div>
