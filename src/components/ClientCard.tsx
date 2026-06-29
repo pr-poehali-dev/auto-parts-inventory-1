@@ -295,7 +295,7 @@ export default function ClientCard({ client, onBack, prefilledItems }: Props) {
     }
   };
 
-  const totalSpent = orders.filter((o) => o.status === 'issued' || o.status === 'done').reduce((s, o) => s + o.total, 0);
+  const totalSpent = localClient.totalSpent ?? 0;
 
   // Подавление предупреждений о неиспользуемых переменных (используются в будущих фичах)
   void editPrepaidId; void editPrepaidVal; void setEditPrepaidId; void setEditPrepaidVal;
